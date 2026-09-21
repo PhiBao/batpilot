@@ -1,16 +1,12 @@
 import { createConfig, http, injected } from "wagmi";
-import { defineChain } from "viem";
-import { CFG } from "./config";
+import { CHAINS } from "./config";
 
-export const batpilotChain = defineChain({
-  id: CFG.chainId,
-  name: CFG.chainId === 31337 ? "Batpilot Local" : "Batpilot Chain",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [CFG.rpcUrl] } },
-});
+const chains = Object.values(CHAINS).map((c) => c.chain) as [any, ...any[]];
 
 export const wagmiConfig = createConfig({
-  chains: [batpilotChain],
+  chains,
   connectors: [injected()],
-  transports: { [batpilotChain.id]: http(CFG.rpcUrl) },
+  transports: Object.fromEntries(
+    Object.values(CHAINS).map((c) => [c.id, http(c.rpc)])
+  ) as any,
 });
