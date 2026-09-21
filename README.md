@@ -182,7 +182,18 @@ cd ../frontend && pnpm install && pnpm dev
 
 Stylus: `cd stylus-guard && cargo test && cargo stylus check`.
 
-## 8. Security notes
+## 8. Hosting (recommended)
+
+- **Frontend → Vercel** (static Vite SPA; git-push previews judges can click).
+  Two projects from this repo: `batpilot-testnet` (`frontend/.env.testnet` values
+  as env vars) and `batpilot-mainnet` (`.env.mainnet` values). Build command:
+  `pnpm --dir frontend build --mode testnet` (resp. `mainnet`).
+- **Keeper → Fly.io** (24/7 loop; `keeper/fly.toml` + `Dockerfile`, `sin` region).
+  One app per chain; secrets via `fly secrets set RPC_URL=… PRIVATE_KEY=… VAULT=…`.
+- AWS is overkill at this stage — revisit for multi-region keepers / managed
+  key infrastructure after traction.
+
+## 9. Security notes
 
 - OZ `SafeERC20` / `ReentrancyGuard` throughout; CEI ordering; keeper is
   trustless (can only call what contracts permit).

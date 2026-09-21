@@ -1,0 +1,21 @@
+# Batpilot keeper on Fly.io (one app per chain; duplicate with a new name for mainnet).
+# Usage: fly launch --no-deploy && fly secrets set RPC_URL=... PRIVATE_KEY=... VAULT=... CHAIN_ID=... INTERVAL_MS=...
+#        fly deploy -a batpilot-keeper-testnet
+app = "batpilot-keeper-testnet"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  INTERVAL_MS = "30000"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[processes]
+  app = "pnpm start"
+
+[[restart]]
+  policy = "always"
