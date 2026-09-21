@@ -7,6 +7,9 @@ onchain trail. Built for the Arbitrum Open House Singapore Buildathon.
 
 **Status: live on Robinhood testnet and mainnet.** See [Deployments](#deployments-live-via-quicknode).
 
+- Testnet app: https://batpilot-testnet-kiters-projects-e9e82f9c.vercel.app
+- Mainnet app: https://batpilot-mainnet-kiters-projects-e9e82f9c.vercel.app
+
 ![Batpilot app](docs/screenshot.png)
 
 ---
