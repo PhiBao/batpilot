@@ -1,0 +1,13 @@
+node_modules/
+dist*/
+out/
+broadcast/
+cache/
+lib/
+.env
+.env.mainnet
+.env.testnet
+.env.local
+*.log
+.DS_Store
+target/
