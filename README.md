@@ -51,8 +51,8 @@ flowchart TB
     U["User / wallet"] -->|"createPlan, fundPlan"| V["BatpilotVault<br/>(Solidity + OZ)"]
     V -->|"plan custody<br/>USDG + stock balances"| V
     K["Keeper bot<br/>(untrusted, permissionless)"] -->|"executeDCA<br/>executeProtection"| V
-    V -->|"evaluate each fill"| G["SessionGuard<br/>Solidity reference +<br/>Stylus/Rust engine"]
-    G -->|"allow: price, updatedAt,<br/>band, pause checks"| V
+    V -->|"evaluate each fill"| G["SessionGuard +<br/>SessionVolEngine<br/>(Solidity + Stylus/Rust)"]
+    G -->|"allow: fresh +<br/>within vol band"| V
     G -->|"refuse: GuardRejected event"| T["Onchain trail"]
     V -->|"swap USDG <-> stock"| R["Swap adapter<br/>Mock / Uniswap v3"]
     R -->|"real pools"| AMM["Uniswap v3<br/>USDG/stock pools"]
@@ -69,13 +69,26 @@ flowchart TB
 |---|---|
 | `BatpilotVault.sol` | Plans, custody, DCA + protection execution, ERC-8056 corporate-action tripwire, yield sweep, full exit |
 | `SessionGuard.sol` | Reference firewall: staleness / band / pause / validity checks + batch screening |
+| `SessionVolEngine.sol` | **Volatility-adaptive bands from feed round history** (testnet `0xcBdDd6bF0d98Cc38cfc4E7aA37189ef8F4bc2A71`, verified): tight mid-session, wide at the open, base-band fallback when history is thin |
 | `UniswapV3Adapter.sol` | Production swaps via SwapRouter02 with oracle-anchored slippage floor |
 | `MorphoEarnAdapter.sol` | Production yield via any ERC4626 Earn vault |
-| `Mocks.sol` | Demo stack: mUSDG, 8056 stock tokens, controllable feeds, priced router, ~7% APR vault |
+| `Mocks.sol` | Demo stack: mUSDG, 8056 stock tokens, controllable feeds (incl. writable round history), priced router, ~7% APR vault |
 
-**Stylus** (`stylus-guard/`): Rust port with identical reason codes plus a
-`batch_evaluate` keeper fast-path — compute-dense, zero-storage screening is
-exactly where WASM undercuts EVM gas (12.9 KB, `cargo stylus check` clean).
+**Stylus** (`stylus-guard/`): Rust ports with identical semantics. `vol_band`
+is the honest WASM workload — per-round ratios, variance accumulation, and an
+iterative integer square root, branchy 256-bit math with zero storage I/O.
+Deployed on RHC testnet at `0xcd587f1d57c24cff0d83c1a5f686d2d364114c55`.
+
+Onchain benchmark, same 13-price window (testnet, `cast estimate`):
+
+| Implementation | Gas | Output |
+|---|---|---|
+| Solidity `bandFor` (12 round reads + math) | 133,746 | band 335 · vol 135 · n 12 |
+| Stylus `volBand` (calldata prices + math) | 78,311 | band 335 · vol 135 · n 12 |
+
+Bit-identical outputs, **41% less gas** end-to-end on the keeper fast-path
+(~24% on pure compute after subtracting the round-read CALLs). The Stylus
+contract answers `volBand` (camelCase ABI) with the same reason-code constants.
 
 **Keeper** (`keeper/`): simulate-then-send loop over all plans (viem/TS).
 Permissionless by design: it can only trigger what the contracts already allow.
@@ -85,13 +98,15 @@ protection, earn) → verifiable trail with tx links → one-click manual execut
 
 ## 3. Proof, not claims
 
-- **12/12** Foundry unit tests: fills, stale/band/corporate-action refusals,
-  stop + take-profit fires, stale-skip, sweep/withdraw, cancel, equity view.
-- **3/3 fork tests vs real RHC mainnet state** (real NVDA + Chainlink feed +
-  6-decimal USDG): interfaces answer, a fill executes at the real feed price,
-  aged-feed refusal is deterministic.
-- **3/3 venue tests vs real mainnet**: USDG→NVDA→USDG through the live Uniswap
-  pool within guard bands; Steakhouse Earn deposit + withdraw round-trip.
+- **27 Foundry tests, all green**: 12 vault-loop tests (fills, stale/band/
+  corporate-action refusals, stop + take-profit fires, stale-skip, sweep,
+  cancel, equity); 8 vol-engine tests (flat/volatile/capped bands, static-guard
+  refusal overturned for a measured reason, thin-history fallback, bad-round
+  skipping); 4 mainnet-fork tests (real NVDA + Chainlink feed + 6-decimal USDG,
+  incl. a fill at the real feed price and vol bands over real round history);
+  3 venue tests (live Uniswap swaps both directions, Steakhouse Earn round-trip).
+- **Stylus**: 7/7 parity tests + testnet deployment + onchain gas benchmark
+  (table above) with bit-identical outputs.
 - **Live E2E on testnet**: deploy → plan → fund → keeper auto-fill
   (`0x6756fd83…ec4c70e2`), equity exactly `$950 + 0.2777 NVDA`.
 - Stylus parity tests (3/3) + `export-abi` + onchain-size check.
@@ -105,6 +120,8 @@ protection, earn) → verifiable trail with tx links → one-click manual execut
 |---|---|---|
 | BatpilotVault | `0x9e75555936a2097Ce281De7EFb5CdCC281277BF5` | [Blockscout](https://explorer.testnet.chain.robinhood.com/address/0x9e75555936a2097Ce281De7EFb5CdCC281277BF5) |
 | SessionGuard | `0x7F50e78b1763c05F944D898EeCC2081c767b2113` | Blockscout |
+| SessionVolEngine | `0xcBdDd6bF0d98Cc38cfc4E7aA37189ef8F4bc2A71` | Blockscout |
+| Stylus guard (`volBand` + firewall) | `0xcd587f1d57c24cff0d83c1a5f686d2d364114c55` | WASM onchain |
 | MockSwapRouter / MockYieldVault / mUSDG / NVDA / TSLA / feeds | see broadcast record | Blockscout |
 
 **Robinhood mainnet (4663)** — real venues:

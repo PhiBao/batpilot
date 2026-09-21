@@ -298,7 +298,28 @@ export default function App() {
         </div>
         <button className="primary" disabled={!isConnected} onClick={setupPlan}>
           {isConnected ? "launch plan" : "connect wallet first"}
-        </button>
+        </button>{" "}
+        {isConnected && (
+          <button
+            title="Mints demo USDG on mock deployments (testnet/local only)"
+            onClick={async () => {
+              try {
+                setStatus("minting test USDG…");
+                await writeContractAsync({
+                  address: CFG.usdg,
+                  abi: ERC20_ABI,
+                  functionName: "mint",
+                  args: [address!, parseUnits("10000", 18)],
+                });
+                setStatus("10,000 test USDG minted — fund a plan above.");
+              } catch (e: any) {
+                setStatus("mint unavailable here (real USDG has no faucet) — use the RHC testnet faucet for stocks and try again on testnet.");
+              }
+            }}
+          >
+            faucet: +10k test USDG
+          </button>
+        )}
       </section>
 
       <section>

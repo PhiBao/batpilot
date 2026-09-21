@@ -35,24 +35,46 @@ contract MockStockToken is ERC20, IStockToken {
     }
 }
 
-/// @notice Mock Chainlink feed (8 decimals) with controllable price + timestamp.
+/// @notice Mock Chainlink feed (8 decimals) with controllable price + timestamp,
+/// plus a writable round history so volatility engines can walk past rounds
+/// exactly like on a real aggregator (getRoundData).
 contract MockFeed is IChainlinkFeed {
     int256 public answer;
     uint256 public updatedAt;
+    uint80 public latestRound;
+
+    mapping(uint80 => int256) public histAnswer;
+    mapping(uint80 => uint256) public histTs;
 
     constructor(int256 initialPrice) {
         answer = initialPrice;
         updatedAt = block.timestamp;
+        latestRound = 1;
+        histAnswer[1] = initialPrice;
+        histTs[1] = block.timestamp;
+    }
+
+    function _push(int256 p, uint256 ts) internal {
+        answer = p;
+        updatedAt = ts;
+        latestRound += 1;
+        histAnswer[latestRound] = p;
+        histTs[latestRound] = ts;
     }
 
     function setPrice(int256 p) external {
-        answer = p;
-        updatedAt = block.timestamp;
+        _push(p, block.timestamp);
     }
 
     function setStale(int256 p, uint256 ts) external {
-        answer = p;
-        updatedAt = ts;
+        _push(p, ts);
+    }
+
+    /// @notice Append a full synthetic history (oldest first), one round per step.
+    function pushHistory(int256[] calldata prices) external {
+        for (uint256 i = 0; i < prices.length; i++) {
+            _push(prices[i], block.timestamp);
+        }
     }
 
     function latestRoundData()
@@ -60,7 +82,15 @@ contract MockFeed is IChainlinkFeed {
         view
         returns (uint80, int256, uint256, uint256, uint80)
     {
-        return (1, answer, updatedAt, updatedAt, 1);
+        return (latestRound, answer, updatedAt, updatedAt, latestRound);
+    }
+
+    function getRoundData(uint80 roundId)
+        external
+        view
+        returns (uint80, int256, uint256, uint256, uint80)
+    {
+        return (roundId, histAnswer[roundId], histTs[roundId], histTs[roundId], roundId);
     }
 
     function decimals() external pure returns (uint8) {

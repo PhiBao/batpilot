@@ -7,6 +7,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 
 import {BatpilotVault} from "../src/BatpilotVault.sol";
 import {SessionGuard} from "../src/SessionGuard.sol";
+import {SessionVolEngine} from "../src/SessionVolEngine.sol";
 import {MockSwapRouter, MockYieldVault} from "../src/Mocks.sol";
 import {IChainlinkFeed, IStockToken} from "../src/IBatpilot.sol";
 
@@ -82,8 +83,7 @@ contract BatpilotForkTest is Test {
         }
     }
 
-    function test_StaleRefusalOnAgedFeed() public {
-        uint256 fill = 50e6;
+    function test_StaleRefusalOnAgedFeed() public {        uint256 fill = 50e6;
         vm.startPrank(user);
         IERC20(USDG).approve(address(vault), type(uint256).max);
         uint256 id = vault.createPlan(NVDA, NVDA_FEED, fill, 60, 800, 2000, 1 hours, 0);
@@ -96,5 +96,38 @@ contract BatpilotForkTest is Test {
         (bool executed, uint8 reason) = vault.executeDCA(id);
         assertFalse(executed);
         assertEq(reason, guard.REASON_STALE());
+    }
+
+    function test_VolEngineOnRealHistory() public {
+        SessionVolEngine engine = new SessionVolEngine(address(guard));
+        engine.setConfig(NVDA_FEED, 200, 10_000, 12, 2000, 7 days);
+
+        (uint256 band, uint256 vol, uint256 n) = engine.bandFor(NVDA_FEED);
+        // Holds whatever the market gives: real vol with real history, or an
+        // honest base-band fallback when the proxy exposes no past rounds.
+        assertGe(band, 200);
+        assertLe(band, 2000);
+        if (n >= 2) {
+            assertGe(vol, 0);
+            // Band must equal base + vol under the cap.
+            uint256 expect = 200 + vol > 2000 ? 2000 : 200 + vol;
+            assertEq(band, expect);
+        } else {
+            assertEq(band, 200);
+        }
+
+        // Self-evaluation at the real price: allow iff the real feed is fresh.
+        (, int256 price,, uint256 updatedAt,) =
+            IChainlinkFeed(NVDA_FEED).latestRoundData();
+        (bool ok, uint8 reason,,,) = engine.evaluate(
+            NVDA_FEED, uint256(price), updatedAt, block.timestamp, uint256(price), false
+        );
+        if (block.timestamp <= updatedAt + 7 days) {
+            assertTrue(ok);
+            assertEq(reason, 0);
+        } else {
+            assertFalse(ok);
+            assertEq(reason, guard.REASON_STALE());
+        }
     }
 }

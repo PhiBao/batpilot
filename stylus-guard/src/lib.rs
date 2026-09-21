@@ -1,12 +1,14 @@
-//! Batpilot SessionGuard — Stylus (Rust) port of the execution firewall.
+//! Batpilot guards — Stylus (Rust) ports of the execution firewall.
 //!
-//! Identical semantics to `contracts/src/SessionGuard.sol`:
-//! reason codes 0 = ALLOW, 1 = STALE, 2 = PAUSED, 3 = BAND_BREACH, 4 = INVALID_PRICE.
+//! `evaluate` / `batch_evaluate` mirror `contracts/src/SessionGuard.sol`
+//! (reason codes 0 = ALLOW, 1 = STALE, 2 = PAUSED, 3 = BAND_BREACH, 4 = INVALID_PRICE).
 //!
-//! Why WASM: keepers scan hundreds of plans per tick through `batch_evaluate`.
-//! The loop is integer-heavy (abs-diff + bps ratio per plan) with zero storage
-//! I/O — exactly the compute-dense, storage-light shape where Stylus undercuts
-//! EVM gas (no SLOADs, native 256-bit arithmetic, single WASM bulk pass).
+//! `vol_band` mirrors `contracts/src/SessionVolEngine.sol`: realized-volatility
+//! bands from price history. THIS is the honest WASM workload — per-round
+//! ratios, variance accumulation, and an iterative integer square root over a
+//! window, all branchy 256-bit integer math with zero storage I/O. The EVM
+//! pays ~100+ gas per MUL/DIV plus loop overhead per round; WASM executes the
+//! same arithmetic natively in a single bulk pass.
 
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
 extern crate alloc;
@@ -30,6 +32,56 @@ const REASON_BAND_BREACH: u8 = 3;
 const REASON_INVALID_PRICE: u8 = 4;
 
 const BPS: U256 = U256::from_limbs([10_000, 0, 0, 0]);
+
+/// Babylonian integer square root (mirrors SessionVolEngine.isqrt).
+fn isqrt(x: U256) -> U256 {
+    if x.is_zero() {
+        return U256::ZERO;
+    }
+    let mut z = (x + U256::from(1)) / U256::from(2);
+    let mut y = x;
+    while z < y {
+        y = z;
+        z = (x / z + z) / U256::from(2);
+    }
+    y
+}
+
+/// Realized-volatility band from a price window (oldest-first).
+/// Returns (band_bps, vol_bps, rounds_used). Mirrors bandFor() fallback:
+/// fewer than 2 usable steps -> base band.
+fn vol_band_calc(
+    prices: &[U256],
+    base_band: U256,
+    vol_mult: U256,
+    max_band: U256,
+) -> (U256, U256, U256) {
+    let mut sum_sq = U256::ZERO;
+    let mut n = U256::ZERO;
+    let mut prev: Option<U256> = None;
+    for &p in prices {
+        if p.is_zero() {
+            prev = None; // break continuity across bad prints
+            continue;
+        }
+        if let Some(q) = prev {
+            let diff = if p >= q { p - q } else { q - p };
+            let ret = diff * BPS / q;
+            sum_sq += ret * ret;
+            n += U256::from(1);
+        }
+        prev = Some(p);
+    }
+    if n < U256::from(2) {
+        return (base_band, U256::ZERO, n);
+    }
+    let vol = isqrt(sum_sq / n);
+    let mut band = base_band + vol_mult * vol / BPS;
+    if band > max_band {
+        band = max_band;
+    }
+    (band, vol, n)
+}
 
 fn eval(
     price: U256,
@@ -144,11 +196,23 @@ impl SessionGuard {
         (allowed, reasons)
     }
 
+    /// Volatility-adaptive band from a price window (oldest-first, feed
+    /// decimals, e.g. 8). Returns (band_bps, vol_bps, rounds_used).
+    /// Pure compute: the WASM showcase — ratios + variance + isqrt in one pass.
+    pub fn vol_band(
+        &self,
+        prices: Vec<U256>,
+        base_band: U256,
+        vol_mult: U256,
+        max_band: U256,
+    ) -> (U256, U256, U256) {
+        vol_band_calc(&prices, base_band, vol_mult, max_band)
+    }
+
     /// Reason-code constants for off-chain consumers.
     pub fn reason_allow(&self) -> u8 {
         REASON_ALLOW
-    }
-    pub fn reason_stale(&self) -> u8 {
+    }    pub fn reason_stale(&self) -> u8 {
         REASON_STALE
     }
     pub fn reason_paused(&self) -> u8 {
@@ -213,8 +277,7 @@ mod test {
     }
 
     #[test]
-    fn parity_protection_thresholds() {
-        // exactly -8% triggers stop
+    fn parity_protection_thresholds() {        // exactly -8% triggers stop
         let entry = u(180_00000000);
         let at_stop = entry * U256::from(92) / U256::from(100);
         let (s, t) = prot(at_stop, entry, u(800), u(2000));
@@ -226,5 +289,54 @@ mod test {
         let at_take = entry * U256::from(120) / U256::from(100);
         let (s, t) = prot(at_take, entry, u(800), u(2000));
         assert!(!s && t);
+    }
+
+    fn px(v: u64) -> U256 {
+        U256::from(v) * U256::from(100_000000)
+    }
+
+    #[test]
+    fn parity_vol_flat_is_base() {
+        let flat = alloc::vec![px(180); 13];
+        let (band, vol, n) = vol_band_calc(&flat, u(200), u(10_000), u(2000));
+        assert_eq!(vol, U256::ZERO);
+        assert_eq!(band, u(200));
+        assert!(n >= U256::from(2));
+    }
+
+    #[test]
+    fn parity_vol_chop_widens() {
+        // +-5% chop: vol ~= 1000bps, band = 200 + 1000 = 1200.
+        let mut v: Vec<U256> = Vec::new();
+        for i in 0..13 {
+            v.push(if i % 2 == 0 { px(189) } else { px(171) });
+        }
+        let (band, vol, _) = vol_band_calc(&v, u(200), u(10_000), u(2000));
+        assert!(vol >= U256::from(900) && vol <= U256::from(1120));
+        assert_eq!(band, U256::from(200) + vol);
+    }
+
+    #[test]
+    fn parity_vol_thin_falls_back() {
+        let (band, vol, n) = vol_band_calc(&alloc::vec![px(180)], u(200), u(10_000), u(2000));
+        assert_eq!(band, u(200));
+        assert_eq!(vol, U256::ZERO);
+        assert!(n < U256::from(2));
+    }
+
+    #[test]
+    fn parity_vol_caps_and_skips() {
+        // +-40% chop would imply ~4000bps+ -> capped at 2000.
+        let mut v: Vec<U256> = Vec::new();
+        for i in 0..13 {
+            v.push(if i % 2 == 0 { px(252) } else { px(108) });
+        }
+        // Inject a bad print mid-window: continuity must break, not poison.
+        v[6] = U256::ZERO;
+        let (band, _, _) = vol_band_calc(&v, u(200), u(10_000), u(2000));
+        assert_eq!(band, u(2000));
+        // isqrt sanity
+        assert_eq!(isqrt(U256::ZERO), U256::ZERO);
+        assert_eq!(isqrt(u(16)), u(4));
     }
 }
