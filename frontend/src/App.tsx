@@ -38,6 +38,7 @@ type PlanRow = {
 
 type TrailItem = {
   key: string;
+  kind: "fill" | "stop" | "refuse" | "info";
   label: string;
   detail: string;
   tx: string;
@@ -122,23 +123,23 @@ export default function App() {
           const a = d.args as any;
           const base = { tx: l.transactionHash!, block: l.blockNumber! };
           if (d.eventName === "Fill")
-            items.push({ ...base, key: base.tx + "f", label: `FILL plan #${a.planId}`, detail: `${fmtUSD(a.usdgIn, USD_D)} → ${formatUnits(a.stockOut, 18)} @ ${fmtPrice(a.price)} · feed ${fmtTs(a.feedTs)}` });
+            items.push({ ...base, key: base.tx + "f", kind: "fill", label: `Fill — plan #${a.planId}`, detail: `${fmtUSD(a.usdgIn, USD_D)} → ${formatUnits(a.stockOut, 18)} @ ${fmtPrice(a.price)} · feed ${fmtTs(a.feedTs)}` });
           else if (d.eventName === "GuardRejected")
-            items.push({ ...base, key: base.tx + "g", label: `GUARD REFUSED plan #${a.planId}`, detail: `${REASONS[a.reason] ?? a.reason} @ ${fmtPrice(a.price)} · feed ${fmtTs(a.feedTs)}` });
+            items.push({ ...base, key: base.tx + "g", kind: "refuse", label: `Guard refused — plan #${a.planId}`, detail: `${REASONS[a.reason] ?? a.reason} @ ${fmtPrice(a.price)} · feed ${fmtTs(a.feedTs)}` });
           else if (d.eventName === "Protected")
-            items.push({ ...base, key: base.tx + "p", label: `${a.kind === 1 ? "STOP-LOSS" : "TAKE-PROFIT"} plan #${a.planId}`, detail: `sold ${formatUnits(a.stockSold, 18)} → ${fmtUSD(a.usdgOut, USD_D)} @ ${fmtPrice(a.price)}` });
+            items.push({ ...base, key: base.tx + "p", kind: "stop", label: `${a.kind === 1 ? "Stop-loss" : "Take-profit"} — plan #${a.planId}`, detail: `sold ${formatUnits(a.stockSold, 18)} → ${fmtUSD(a.usdgOut, USD_D)} @ ${fmtPrice(a.price)}` });
           else if (d.eventName === "Funded")
-            items.push({ ...base, key: base.tx + "fu", label: `FUNDED plan #${a.planId}`, detail: fmtUSD(a.amount, USD_D) });
+            items.push({ ...base, key: base.tx + "fu", kind: "info", label: `Funded — plan #${a.planId}`, detail: fmtUSD(a.amount, USD_D) });
           else if (d.eventName === "PlanCreated")
-            items.push({ ...base, key: base.tx + "c", label: `PLAN #${a.planId} CREATED`, detail: `${fmtUSD(a.amountPerFill, USD_D)} / fill` });
+            items.push({ ...base, key: base.tx + "c", kind: "info", label: `Plan #${a.planId} created`, detail: `${fmtUSD(a.amountPerFill, USD_D)} / fill` });
           else if (d.eventName === "Swept")
-            items.push({ ...base, key: base.tx + "s", label: `SWEPT plan #${a.planId} → earn`, detail: fmtUSD(a.assets, USD_D) });
+            items.push({ ...base, key: base.tx + "s", kind: "fill", label: `Swept to earn — plan #${a.planId}`, detail: fmtUSD(a.assets, USD_D) });
           else if (d.eventName === "CorporateActionPause")
-            items.push({ ...base, key: base.tx + "ca", label: `CORPORATE ACTION — plan #${a.planId} paused`, detail: `multiplier changed (split/dividend)` });
+            items.push({ ...base, key: base.tx + "ca", kind: "refuse", label: `Corporate action — plan #${a.planId} paused`, detail: `multiplier changed (split/dividend)` });
           else if (d.eventName === "Cancelled")
-            items.push({ ...base, key: base.tx + "x", label: `CANCELLED plan #${a.planId}`, detail: `${fmtUSD(a.usdgReturned, USD_D)} returned` });
+            items.push({ ...base, key: base.tx + "x", kind: "info", label: `Cancelled — plan #${a.planId}`, detail: `${fmtUSD(a.usdgReturned, USD_D)} returned` });
           else if (d.eventName === "ProtectionSkipped")
-            items.push({ ...base, key: base.tx + "ps", label: `PROTECTION SKIPPED plan #${a.planId}`, detail: `stale feed — refused to act blind` });
+            items.push({ ...base, key: base.tx + "ps", kind: "refuse", label: `Protection skipped — plan #${a.planId}`, detail: `stale feed — refused to act blind` });
         } catch { /* ignore undecodable */ }
       }
       items.sort((x, y) => (x.block > y.block ? -1 : 1));
@@ -175,12 +176,12 @@ export default function App() {
       const s = CH.stocks[stockIdx];
       const amt = parseUnits(amount || "0", USD_D);
       const fundAmt = parseUnits(fund || "0", USD_D);
-      setStatus("1/3 approving USDG…");
+      setStatus("1/3 — approving USDG…");
       await writeContractAsync({
         address: CH.usdg, abi: ERC20_ABI, functionName: "approve",
         args: [CH.vault, fundAmt], chainId: CH.chain.id,
       });
-      setStatus("2/3 creating plan…");
+      setStatus("2/3 — creating plan…");
       await writeContractAsync({
         address: CH.vault, abi: VAULT_ABI, functionName: "createPlan",
         args: [
@@ -196,12 +197,12 @@ export default function App() {
         address: CH.vault, abi: VAULT_ABI, functionName: "planCount",
       })) as bigint;
       const id = count - 1n;
-      setStatus("3/3 funding plan…");
+      setStatus("3/3 — funding plan…");
       await writeContractAsync({
         address: CH.vault, abi: VAULT_ABI, functionName: "fundPlan",
         args: [id, fundAmt], chainId: CH.chain.id,
       });
-      setStatus(`plan #${id} live on ${CH.name} — keeper will fill on schedule.`);
+      setStatus(`Plan #${id} live on ${CH.name} — the keeper fills on schedule.`);
       setRefresh((r) => r + 1);
     } catch (e: any) {
       setStatus("failed: " + (e?.shortMessage ?? e?.message ?? e));
@@ -210,7 +211,7 @@ export default function App() {
 
   async function poke(id: bigint) {
     try {
-      setStatus(`checking plan #${id}…`);
+      setStatus(`Checking plan #${id}…`);
       const sim = (await client.simulateContract({
         address: CH.vault, abi: VAULT_ABI, functionName: "executeDCA",
         args: [id], account: address!,
@@ -218,7 +219,7 @@ export default function App() {
       if (!(await needWalletChain())) return;
       if (sim.result[0]) {
         await writeContractAsync({ address: CH.vault, abi: VAULT_ABI, functionName: "executeDCA", args: [id], chainId: CH.chain.id });
-        setStatus(`fill executed on plan #${id}.`);
+        setStatus(`Fill executed on plan #${id}.`);
       } else {
         const code = (await client.simulateContract({
           address: CH.vault, abi: VAULT_ABI, functionName: "executeProtection",
@@ -226,9 +227,9 @@ export default function App() {
         })) as any;
         if (code.result === 1 || code.result === 2) {
           await writeContractAsync({ address: CH.vault, abi: VAULT_ABI, functionName: "executeProtection", args: [id], chainId: CH.chain.id });
-          setStatus(`protection fired on plan #${id}.`);
+          setStatus(`Protection fired on plan #${id}.`);
         } else {
-          setStatus(`plan #${id}: nothing due right now (DCA reason ${REASONS[sim.result[1]] ?? sim.result[1]}, protection ${code.result}).`);
+          setStatus(`Plan #${id}: nothing due (DCA: ${REASONS[sim.result[1]] ?? sim.result[1]}, protection: ${code.result}).`);
         }
       }
       setRefresh((r) => r + 1);
@@ -241,7 +242,7 @@ export default function App() {
     try {
       if (!(await needWalletChain())) return;
       await writeContractAsync({ address: CH.vault, abi: VAULT_ABI, functionName: "sweepToYield", args: [id, amt], chainId: CH.chain.id });
-      setStatus(`swept ${fmtUSD(amt, USD_D)} to earn.`);
+      setStatus(`Swept ${fmtUSD(amt, USD_D)} to earn.`);
       setRefresh((r) => r + 1);
     } catch (e: any) {
       setStatus("sweep failed: " + (e?.shortMessage ?? e?.message ?? e));
@@ -252,7 +253,7 @@ export default function App() {
     try {
       if (!(await needWalletChain())) return;
       await writeContractAsync({ address: CH.vault, abi: VAULT_ABI, functionName: "cancelPlan", args: [id], chainId: CH.chain.id });
-      setStatus(`plan #${id} cancelled, funds returned.`);
+      setStatus(`Plan #${id} cancelled, funds returned.`);
       setRefresh((r) => r + 1);
     } catch (e: any) {
       setStatus("cancel failed: " + (e?.shortMessage ?? e?.message ?? e));
@@ -262,14 +263,14 @@ export default function App() {
   async function faucet() {
     if (!address || !(await needWalletChain())) return;
     try {
-      setStatus("minting test USDG…");
+      setStatus("Minting test USDG…");
       await writeContractAsync({
         address: CH.usdg, abi: ERC20_ABI, functionName: "mint",
         args: [address!, parseUnits("10000", USD_D)], chainId: CH.chain.id,
       });
-      setStatus("10,000 test USDG minted — fund a plan above.");
+      setStatus("10,000 test USDG minted — fund a plan below.");
     } catch {
-      setStatus("mint unavailable here (real USDG has no faucet). " + CH.faucetNote);
+      setStatus("Mint unavailable here (real USDG has no faucet). " + CH.faucetNote);
     }
   }
 
@@ -280,99 +281,111 @@ export default function App() {
 
   return (
     <div className="page">
-      <header className="hero">
-        <div>
-          <div className="brand">BATPILOT</div>
-          <h1>Your US stocks, managed while you sleep.</h1>
-          <p className="sub">
-            Recurring buys + stop-loss / take-profit protection on tokenized stocks.
-            Session-aware guard, USDG settlement, verifiable onchain trail.
-          </p>
-          <div className="row chainrow">
-            {Object.values(CHAINS).map((c) => (
-              <button
-                key={c.id}
-                className={c.id === chainId ? "primary" : ""}
-                onClick={() => { setChainId(c.id); setStatus(""); }}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-          <p className="dim small">{CH.faucetNote} · vault <code>{CH.vault.slice(0, 10)}…</code></p>
-        </div>
+      <div className="topbar">
+        <div className="brand">BATPILOT<em>RHC</em></div>
         <div className="connect">
           {isConnected ? (
             <>
               <code>{address?.slice(0, 6)}…{address?.slice(-4)}</code>
-              <button onClick={() => disconnect()}>disconnect</button>
+              <button className="btn" onClick={() => disconnect()}>Disconnect</button>
             </>
           ) : (
-            <button className="primary" onClick={() => connectors[0] && connect({ connector: connectors[0] })}>
-              connect wallet
+            <button className="btn primary" onClick={() => connectors[0] && connect({ connector: connectors[0] })}>
+              Connect wallet
             </button>
           )}
         </div>
+      </div>
+
+      <header className="hero">
+        <h1>US stocks, <span className="accent">managed</span> while you sleep.</h1>
+        <p className="lede">
+          Recurring buys and stop-loss protection on tokenized stocks —
+          enforced by a volatility-aware onchain guard, settled in USDG,
+          verifiable block by block.
+        </p>
+        <div className="tabs">
+          {Object.values(CHAINS).map((c) => (
+            <button
+              key={c.id}
+              className={c.id === chainId ? "on" : ""}
+              onClick={() => { setChainId(c.id); setStatus(""); }}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        <p className="chainnote">{CH.faucetNote} · vault <code>{CH.vault.slice(0, 10)}…</code></p>
       </header>
 
       {status && <div className="status">{status}</div>}
 
-      <section className="card">
-        <h2>New autopilot plan <span className="dim">— 60 seconds, set and sleep</span></h2>
-        <div className="grid">
-          <label>stock
-            <select value={stockIdx} onChange={(e) => setStockIdx(Number(e.target.value))}>
-              {CH.stocks.map((s, i) => (
-                <option key={s.symbol} value={i}>{s.symbol} · ref {s.refPrice}</option>
-              ))}
-            </select>
-          </label>
-          <label>buy amount (USDG)<input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
-          <label>every (min)<input value={cadenceMin} onChange={(e) => setCadenceMin(e.target.value)} /></label>
-          <label>stop-loss %<input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
-          <label>take-profit %<input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
-          <label>fund with (USDG)<input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
+      <section>
+        <div className="sec-head">
+          <span className="sec-num">01</span>
+          <h2>New autopilot plan</h2>
+          <span className="dim">60 seconds, set and sleep</span>
         </div>
-        <button className="primary" disabled={!isConnected} onClick={setupPlan}>
-          {isConnected ? `launch plan on ${CH.name}` : "connect wallet first"}
-        </button>{" "}
-        {isConnected && chainId !== 4663 && (
-          <button title="Mints demo USDG on mock deployments" onClick={faucet}>
-            faucet: +10k test USDG
-          </button>
-        )}
+        <div className="panel">
+          <div className="fields">
+            <label>Stock
+              <select value={stockIdx} onChange={(e) => setStockIdx(Number(e.target.value))}>
+                {CH.stocks.map((s, i) => (
+                  <option key={s.symbol} value={i}>{s.symbol} · {s.refPrice}</option>
+                ))}
+              </select>
+            </label>
+            <label>Buy amount · USDG<input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+            <label>Every · min<input value={cadenceMin} onChange={(e) => setCadenceMin(e.target.value)} /></label>
+            <label>Stop-loss · %<input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
+            <label>Take-profit · %<input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
+            <label>Fund with · USDG<input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
+          </div>
+          <div className="btnrow">
+            <button className="btn primary" disabled={!isConnected} onClick={setupPlan}>
+              {isConnected ? `Launch plan on ${CH.name}` : "Connect wallet first"}
+            </button>
+            {isConnected && chainId !== 4663 && (
+              <button className="btn" onClick={faucet}>Faucet · +10k test USDG</button>
+            )}
+          </div>
+        </div>
       </section>
 
       <section>
-        <h2>Plans on {CH.name} {myPlans.length > 0 && <span className="dim">({myPlans.length})</span>}</h2>
-        {myPlans.length === 0 && <p className="dim">no plans yet — launch one above.</p>}
+        <div className="sec-head">
+          <span className="sec-num">02</span>
+          <h2>Plans</h2>
+          <span className="dim">{CH.name}{myPlans.length > 0 && ` · ${myPlans.length}`}</span>
+        </div>
+        {myPlans.length === 0 && <p className="empty">No plans yet — launch one above.</p>}
         {myPlans.map((p) => {
           const total = p.equity[0] + p.equity[2] + p.equity[3];
           return (
-            <div className="card plan" key={String(p.id)}>
+            <div className="plan" key={String(p.id)}>
               <div className="plan-head">
-                <strong>#{String(p.id)} {STOCK_NAME[p.stock.toLowerCase()] ?? "STOCK"}</strong>
-                <span className={p.active ? (p.paused ? "tag warn" : "tag ok") : "tag"}>
-                  {!p.active ? "closed" : p.paused ? "paused (corp. action)" : "active"}
+                <span className="pid">#{String(p.id)} · {STOCK_NAME[p.stock.toLowerCase()] ?? "STOCK"}</span>
+                <span className={`tag ${!p.active ? "off" : p.paused ? "warn" : "ok"}`}>
+                  {!p.active ? "closed" : p.paused ? "paused · corp. action" : "active"}
                 </span>
               </div>
-              <div className="plan-stats">
-                <div><span>per fill</span><strong>{fmtUSD(p.amountPerFill, USD_D)}</strong></div>
-                <div><span>every</span><strong>{String(p.cadenceSec / 60n)} min</strong></div>
-                <div><span>stock held</span><strong>{Number(formatUnits(p.stockBalance, 18)).toFixed(4)}</strong></div>
-                <div><span>avg entry</span><strong>{p.entryAvg > 0n ? fmtPrice(p.entryAvg) : "—"}</strong></div>
-                <div><span>protection</span><strong>−{Number(p.stopLossBps) / 100}% / +{Number(p.takeProfitBps) / 100}%</strong></div>
-                <div><span>total value</span><strong>{fmtUSD(total, USD_D)}</strong></div>
-                <div><span>in earn</span><strong>{fmtUSD(p.equity[3], USD_D)}</strong></div>
-                <div><span>last fill</span><strong>{p.lastFill > 0n ? fmtTs(p.lastFill) : "—"}</strong></div>
+              <div className="statgrid">
+                <div><span>Total value</span><strong className="hero-num">{fmtUSD(total, USD_D)}</strong></div>
+                <div><span>Stock held</span><strong>{Number(formatUnits(p.stockBalance, 18)).toFixed(4)}</strong></div>
+                <div><span>Avg entry</span><strong>{p.entryAvg > 0n ? fmtPrice(p.entryAvg) : "—"}</strong></div>
+                <div><span>Per fill</span><strong>{fmtUSD(p.amountPerFill, USD_D)}</strong></div>
+                <div><span>Cadence</span><strong>{String(p.cadenceSec / 60n)} min</strong></div>
+                <div><span>Protection</span><strong>−{Number(p.stopLossBps) / 100}% / +{Number(p.takeProfitBps) / 100}%</strong></div>
+                <div><span>In earn</span><strong>{fmtUSD(p.equity[3], USD_D)}</strong></div>
+                <div><span>Last fill</span><strong style={{ fontSize: 16 }}>{p.lastFill > 0n ? fmtTs(p.lastFill) : "—"}</strong></div>
               </div>
               {p.active && (
-                <div className="row">
-                  <button onClick={() => poke(p.id)}>check &amp; execute now</button>
+                <div className="btnrow">
+                  <button className="btn primary" onClick={() => poke(p.id)}>Check &amp; execute now</button>
                   {p.usdgBalance > 0n && (
-                    <button onClick={() => sweep(p.id, p.usdgBalance)}>sweep idle → earn</button>
+                    <button className="btn" onClick={() => sweep(p.id, p.usdgBalance)}>Sweep idle → earn</button>
                   )}
-                  <button className="danger" onClick={() => cancel(p.id)}>cancel &amp; exit</button>
+                  <button className="btn danger" onClick={() => cancel(p.id)}>Cancel &amp; exit</button>
                 </div>
               )}
             </div>
@@ -381,23 +394,32 @@ export default function App() {
       </section>
 
       <section>
-        <h2>Verifiable trail <span className="dim">— every fill, refusal, and protection, onchain</span></h2>
-        {trail.length === 0 && <p className="dim">no events yet.</p>}
+        <div className="sec-head">
+          <span className="sec-num">03</span>
+          <h2>Verifiable trail</h2>
+          <span className="dim">every fill, refusal and protection — onchain</span>
+        </div>
+        {trail.length === 0 && <p className="empty">No events yet.</p>}
         {trail.map((t) => (
           <div className="trail" key={t.key}>
-            <div><strong>{t.label}</strong> <span className="dim">· block {String(t.block)}</span></div>
-            <div className="dim">{t.detail}</div>
-            {txLink(t.tx) ? (
-              <a href={txLink(t.tx)} target="_blank" rel="noreferrer"><code>{t.tx.slice(0, 18)}…</code></a>
-            ) : (
-              <code>{t.tx.slice(0, 18)}…</code>
-            )}
+            <span className={`dot ${t.kind}`} />
+            <div>
+              <strong>{t.label}</strong>
+              <span className="dim"> · block {String(t.block)}</span>
+              <div className="meta">{t.detail}</div>
+              {txLink(t.tx) ? (
+                <a href={txLink(t.tx)} target="_blank" rel="noreferrer"><code>{t.tx.slice(0, 18)}…</code></a>
+              ) : (
+                <code>{t.tx.slice(0, 18)}…</code>
+              )}
+            </div>
           </div>
         ))}
       </section>
 
-      <footer className="dim">
-        batpilot · non-custodial stock autopilot · guard refuses stale fills — never acts blind
+      <footer>
+        <span>Batpilot · non-custodial stock autopilot</span>
+        <span>Guard refuses stale fills — never acts blind</span>
       </footer>
     </div>
   );

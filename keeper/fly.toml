@@ -1,7 +1,7 @@
-# Batpilot keeper on Fly.io (one app per chain; duplicate with a new name for mainnet).
-# Usage: fly launch --no-deploy && fly secrets set RPC_URL=... PRIVATE_KEY=... VAULT=... CHAIN_ID=... INTERVAL_MS=...
-#        fly deploy -a batpilot-keeper-testnet
-app = "batpilot-keeper-testnet"
+# Batpilot keeper on Fly.io — ONE app watching all chains via WATCH env.
+# Secrets: fly secrets set PRIVATE_KEY=... WATCH="testnet:46630:<vault>:<rpc>,mainnet:4663:<vault>:<rpc>" INTERVAL_MS=...
+# Deploy: fly deploy
+app = "batpilot-keeper"
 primary_region = "sin"
 
 [build]
@@ -15,7 +15,7 @@ primary_region = "sin"
   memory = "256mb"
 
 [processes]
-  app = "pnpm start"
+  app = "node dist/index.js"
 
 [[restart]]
   policy = "always"
