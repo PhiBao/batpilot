@@ -395,6 +395,53 @@ button {
   padding: 8px 0 4px;
 }
 
+.portfolioline {
+  font-size: 17px;
+  margin: 0 0 20px;
+}
+
+.portfolioline strong {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+
+.perfrow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+
+.spark > span,
+.delta > span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 8px;
+}
+
+.delta strong {
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .perfrow { grid-template-columns: 1fr; }
+}
+
 /* ---------- trail ---------- */
 
 .trail {

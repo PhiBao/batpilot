@@ -47,8 +47,28 @@ export const VAULT_ABI = [
   { type: "event", name: "Cancelled", inputs: [{ name: "planId", type: "uint256", indexed: true }, { name: "usdgReturned", type: "uint256" }] },
 ] as const;
 
-export const ERC20_ABI = [
-  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
+export const FEED_ABI = [
+  {
+    type: "function", name: "latestRoundData", stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "roundId", type: "uint80" }, { name: "answer", type: "int256" },
+      { name: "startedAt", type: "uint256" }, { name: "updatedAt", type: "uint256" },
+      { name: "answeredInRound", type: "uint80" },
+    ],
+  },
+  {
+    type: "function", name: "getRoundData", stateMutability: "view",
+    inputs: [{ name: "roundId", type: "uint80" }],
+    outputs: [
+      { name: "roundId", type: "uint80" }, { name: "answer", type: "int256" },
+      { name: "startedAt", type: "uint256" }, { name: "updatedAt", type: "uint256" },
+      { name: "answeredInRound", type: "uint80" },
+    ],
+  },
+] as const;
+
+export const ERC20_ABI = [  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "a", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [] },
   { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },

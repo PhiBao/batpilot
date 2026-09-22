@@ -92,8 +92,10 @@ Bit-identical outputs, **41% less gas** end-to-end on the keeper fast-path
 (~24% on pure compute after subtracting the round-read CALLs). The Stylus
 contract answers `volBand` (camelCase ABI) with the same reason-code constants.
 
-**Keeper** (`keeper/`): simulate-then-send loop over all plans (viem/TS).
+**Keeper** (`keeper/` → `keeper-worker/`): simulate-then-send loop over all plans (viem/TS).
 Permissionless by design: it can only trigger what the contracts already allow.
+Runs as a Cloudflare Workers cron (1 app, all chains via `WATCH` env, secrets
+via `wrangler secret`).
 
 **Frontend** (`frontend/`): 60-second guided setup → plan cards (equity, entry,
 protection, earn) → verifiable trail with tx links → one-click manual execution.
@@ -207,8 +209,10 @@ Stylus: `cd stylus-guard && cargo test && cargo stylus check`.
   Two projects from this repo: `batpilot-testnet` (`frontend/.env.testnet` values
   as env vars) and `batpilot-mainnet` (`.env.mainnet` values). Build command:
   `pnpm --dir frontend build --mode testnet` (resp. `mainnet`).
-- **Keeper → Fly.io** (24/7 loop; `keeper/fly.toml` + `Dockerfile`, `sin` region).
-  One app per chain; secrets via `fly secrets set RPC_URL=… PRIVATE_KEY=… VAULT=…`.
+- **Keeper → Cloudflare Workers cron** (`keeper-worker/`, 1 app, all chains).
+  `wrangler secret put PRIVATE_KEY` + `wrangler secret put WATCH`, then
+  `wrangler deploy`. One free worker replaces the Fly machines; `keeper/` holds
+  the standalone long-loop version if you ever need it.
 - AWS is overkill at this stage — revisit for multi-region keepers / managed
   key infrastructure after traction.
 

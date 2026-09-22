@@ -11,6 +11,7 @@ import {
   CHAINS,
   DEFAULT_CHAIN,
   ERC20_ABI,
+  FEED_ABI,
   REASONS,
   VAULT_ABI,
   fmtPrice,
@@ -18,10 +19,54 @@ import {
   fmtUSD,
 } from "./config";
 
+type FillMark = { price: bigint; ts: bigint };
+
+type HistPoint = { price: bigint; ts: bigint };
+
+function Sparkline({ data, marks, w = 280, h = 64 }: { data: HistPoint[]; marks: FillMark[]; w?: number; h?: number }) {
+  if (data.length < 2) return <div className="dim small">not enough history yet</div>;
+  const prices = data.map((d) => Number(d.price));
+  const lo = Math.min(...prices);
+  const hi = Math.max(...prices);
+  const span = hi - lo || 1;
+  const X = (i: number) => (i / (data.length - 1)) * (w - 8) + 4;
+  const Y = (p: number) => h - 6 - ((p - lo) / span) * (h - 12);
+  const line = data.map((d, i) => `${i === 0 ? "M" : "L"}${X(i).toFixed(1)},${Y(Number(d.price)).toFixed(1)}`).join(" ");
+  // Mark fills whose price falls inside the visible window.
+  const dots = marks
+    .map((m) => {
+      let best = -1;
+      let bestDt = Infinity;
+      data.forEach((d, i) => {
+        const dt = Math.abs(Number(d.ts) - Number(m.ts));
+        if (dt < bestDt) { bestDt = dt; best = i; }
+      });
+      if (best < 0 || bestDt > 7 * 24 * 3600) return null;
+      return { x: X(best), y: Y(Number(m.price)) };
+    })
+    .filter(Boolean) as { x: number; y: number }[];
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label="price history">
+      <path d={`${line} L${(w - 4).toFixed(1)},${h} L4,${h} Z`} fill="var(--acid-soft)" opacity="0.7" />
+      <path d={line} fill="none" stroke="var(--ink)" strokeWidth="2" strokeLinejoin="round" />
+      {dots.map((d, i) => (
+        <circle key={i} cx={d.x} cy={d.y} r="4" fill="var(--acid)" stroke="var(--ink)" strokeWidth="1.5" />
+      ))}
+      <text x={w - 4} y={14} textAnchor="end" fontSize="11" fill="var(--muted)" fontFamily="var(--mono)">
+        ${((hi as number) / 1e8).toFixed(2)}
+      </text>
+      <text x={w - 4} y={h - 4} textAnchor="end" fontSize="11" fill="var(--muted)" fontFamily="var(--mono)">
+        ${((lo as number) / 1e8).toFixed(2)}
+      </text>
+    </svg>
+  );
+}
+
 type PlanRow = {
   id: bigint;
   owner: string;
   stock: string;
+  feed: string;
   amountPerFill: bigint;
   cadenceSec: bigint;
   stopLossBps: bigint;
@@ -43,7 +88,20 @@ type TrailItem = {
   detail: string;
   tx: string;
   block: bigint;
+  planId: string;
+  fillPrice?: bigint;
+  fillTs?: bigint;
 };
+
+function positionPnl(p: PlanRow, stockValue: bigint, usdD: number) {
+  if (p.stockBalance === 0n || p.entryAvg === 0n) return null;
+  const costRaw = (p.stockBalance * p.entryAvg) / BigInt(1e8); // 18-dec scale
+  const cost = usdD === 6 ? costRaw / BigInt(1e12) : costRaw;
+  if (cost === 0n) return null;
+  const pnl = stockValue - cost;
+  const pct = (pnl * 10000n) / cost; // bps
+  return { pnl, pct };
+}
 
 export default function App() {
   const [chainId, setChainId] = useState<number>(DEFAULT_CHAIN);
@@ -66,6 +124,7 @@ export default function App() {
 
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [trail, setTrail] = useState<TrailItem[]>([]);
+  const [hist, setHist] = useState<Record<string, HistPoint[]>>({});
   const [status, setStatus] = useState("");
   const [refresh, setRefresh] = useState(0);
 
@@ -100,7 +159,7 @@ export default function App() {
           args: [id],
         })) as readonly [bigint, bigint, bigint, bigint];
         rows.push({
-          id, owner: p[0], stock: p[1], amountPerFill: p[3], cadenceSec: p[4],
+          id, owner: p[0], stock: p[1], feed: p[2], amountPerFill: p[3], cadenceSec: p[4],
           stopLossBps: p[5], takeProfitBps: p[6], usdgBalance: p[9],
           stockBalance: p[10], entryAvg: p[11], lastFill: p[12],
           yieldShares: p[14], active: p[15], paused: p[16], equity,
@@ -121,9 +180,9 @@ export default function App() {
         try {
           const d = decodeEventLog({ abi: VAULT_ABI, data: l.data, topics: l.topics });
           const a = d.args as any;
-          const base = { tx: l.transactionHash!, block: l.blockNumber! };
+          const base = { tx: l.transactionHash!, block: l.blockNumber!, planId: String(a.planId ?? "") };
           if (d.eventName === "Fill")
-            items.push({ ...base, key: base.tx + "f", kind: "fill", label: `Fill — plan #${a.planId}`, detail: `${fmtUSD(a.usdgIn, USD_D)} → ${formatUnits(a.stockOut, 18)} @ ${fmtPrice(a.price)} · feed ${fmtTs(a.feedTs)}` });
+            items.push({ ...base, key: base.tx + "f", kind: "fill", fillPrice: a.price as bigint, fillTs: a.feedTs as bigint, label: `Fill — plan #${a.planId}`, detail: `${fmtUSD(a.usdgIn, USD_D)} → ${formatUnits(a.stockOut, 18)} @ ${fmtPrice(a.price)} · feed ${fmtTs(a.feedTs)}` });
           else if (d.eventName === "GuardRejected")
             items.push({ ...base, key: base.tx + "g", kind: "refuse", label: `Guard refused — plan #${a.planId}`, detail: `${REASONS[a.reason] ?? a.reason} @ ${fmtPrice(a.price)} · feed ${fmtTs(a.feedTs)}` });
           else if (d.eventName === "Protected")
@@ -144,6 +203,32 @@ export default function App() {
       }
       items.sort((x, y) => (x.block > y.block ? -1 : 1));
       setTrail(items);
+
+      // Feed history per unique stock feed (cap 24 rounds back) for sparklines.
+      const feeds = [...new Set(rows.map((r) => r.feed))];
+      const h: Record<string, HistPoint[]> = {};
+      await Promise.all(
+        feeds.map(async (f) => {
+          try {
+            const latest = (await client.readContract({
+              address: f as `0x${string}`, abi: FEED_ABI, functionName: "latestRoundData",
+            })) as any;
+            const latestId = BigInt(latest[0]);
+            const pts: HistPoint[] = [];
+            const start = latestId > 24n ? latestId - 24n : 1n;
+            for (let r = start; r <= latestId; r++) {
+              try {
+                const rd = (await client.readContract({
+                  address: f as `0x${string}`, abi: FEED_ABI, functionName: "getRoundData", args: [r],
+                })) as any;
+                if (rd[1] > 0n) pts.push({ price: rd[1] as bigint, ts: rd[3] as bigint });
+              } catch { /* skip unreadable rounds */ }
+            }
+            h[f.toLowerCase()] = pts;
+          } catch { /* feed without history */ }
+        })
+      );
+      setHist(h);
     } catch (e: any) {
       setStatus("read failed: " + (e?.shortMessage ?? e?.message ?? e));
     }
@@ -279,6 +364,25 @@ export default function App() {
     [plans, address]
   );
 
+  const fillsFor = useCallback(
+    (id: bigint): FillMark[] =>
+      trail
+        .filter((t) => t.kind === "fill" && t.planId === String(id) && t.fillPrice && t.fillTs)
+        .map((t) => ({ price: t.fillPrice!, ts: t.fillTs! })),
+    [trail]
+  );
+
+  const portfolio = useMemo(() => {
+    let value = 0n;
+    let pnl = 0n;
+    for (const p of myPlans) {
+      value += p.equity[0] + p.equity[2] + p.equity[3];
+      const d = positionPnl(p, p.equity[2], USD_D);
+      if (d) pnl += d.pnl;
+    }
+    return { value, pnl };
+  }, [myPlans, USD_D]);
+
   return (
     <div className="page">
       <div className="topbar">
@@ -358,11 +462,33 @@ export default function App() {
           <h2>Plans</h2>
           <span className="dim">{CH.name}{myPlans.length > 0 && ` · ${myPlans.length}`}</span>
         </div>
+        {myPlans.length > 0 && (
+          <p className="portfolioline">
+            Portfolio <strong>{fmtUSD(portfolio.value, USD_D)}</strong>
+            {" · "}
+            <strong className={portfolio.pnl >= 0n ? "pos" : "neg"}>
+              {portfolio.pnl >= 0n ? "+" : "−"}{fmtUSD(portfolio.pnl >= 0n ? portfolio.pnl : -portfolio.pnl, USD_D)} unrealized
+            </strong>
+          </p>
+        )}
         {myPlans.length === 0 && <p className="empty">No plans yet — launch one above.</p>}
         {myPlans.map((p) => {
           const total = p.equity[0] + p.equity[2] + p.equity[3];
-          return (
-            <div className="plan" key={String(p.id)}>
+          const delta = positionPnl(p, p.equity[2], USD_D);
+          const rawHist = hist[p.feed?.toLowerCase?.() ?? ""] ?? [];
+          const marks = fillsFor(p.id);
+          // Fallback when the feed exposes no round history (e.g. mock feeds):
+          // plot the plan's own execution history + live position instead.
+          const data = (() => {
+            if (rawHist.length >= 2) return rawHist;
+            const pts = [...marks]
+              .sort((a, b) => Number(a.ts - b.ts))
+              .map((m) => ({ price: m.price, ts: m.ts }));
+            const live = p.entryAvg > 0n ? p.entryAvg : pts.length ? pts[pts.length - 1].price : 0n;
+            if (live > 0n) pts.push({ price: live, ts: BigInt(Math.floor(Date.now() / 1000)) });
+            return pts;
+          })();
+          return (            <div className="plan" key={String(p.id)}>
               <div className="plan-head">
                 <span className="pid">#{String(p.id)} · {STOCK_NAME[p.stock.toLowerCase()] ?? "STOCK"}</span>
                 <span className={`tag ${!p.active ? "off" : p.paused ? "warn" : "ok"}`}>
@@ -378,6 +504,25 @@ export default function App() {
                 <div><span>Protection</span><strong>−{Number(p.stopLossBps) / 100}% / +{Number(p.takeProfitBps) / 100}%</strong></div>
                 <div><span>In earn</span><strong>{fmtUSD(p.equity[3], USD_D)}</strong></div>
                 <div><span>Last fill</span><strong style={{ fontSize: 16 }}>{p.lastFill > 0n ? fmtTs(p.lastFill) : "—"}</strong></div>
+              </div>
+              <div className="perfrow">
+                <div className="spark">
+                  <span>Live price · fills marked</span>
+                  <Sparkline data={data} marks={marks} />
+                </div>
+                <div className="delta">
+                  <span>Position P&amp;L · unrealized</span>
+                  {delta ? (
+                    <strong className={delta.pnl >= 0n ? "pos" : "neg"}>
+                      {delta.pnl >= 0n ? "+" : "−"}
+                      {fmtUSD(delta.pnl >= 0n ? delta.pnl : -delta.pnl, USD_D)}
+                      {" "}
+                      ({delta.pct >= 0n ? "+" : "−"}{(Number(delta.pct >= 0n ? delta.pct : -delta.pct) / 100).toFixed(2)}%)
+                    </strong>
+                  ) : (
+                    <strong>—</strong>
+                  )}
+                </div>
               </div>
               {p.active && (
                 <div className="btnrow">

@@ -1,0 +1,13 @@
+name = "batpilot-keeper"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# One keeper for all chains, every minute. Secrets (never commit):
+#   wrangler secret put PRIVATE_KEY
+#   wrangler secret put WATCH   # "testnet:46630:<vault>:<rpc>,mainnet:4663:<vault>:<rpc>"
+[triggers]
+crons = ["*/1 * * * *"]
+
+[observability]
+enabled = true
