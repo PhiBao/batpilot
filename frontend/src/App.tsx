@@ -334,6 +334,33 @@ export default function App() {
     }
   }
 
+  async function topUp(id: bigint, perFill: bigint) {
+    try {
+      if (!(await needWalletChain())) return;
+      const amt = perFill * 10n; // ≈10 more fills
+      const allow = (await client.readContract({
+        address: CH.usdg, abi: ERC20_ABI, functionName: "balanceOf", args: [address!],
+      })) as bigint;
+      if (allow < amt) {
+        setStatus(`You hold ${fmtUSD(allow, USD_D)} — less than ${fmtUSD(amt, USD_D)}. Mint or buy USDG first.`);
+        return;
+      }
+      setStatus("Approving + topping up…");
+      await writeContractAsync({
+        address: CH.usdg, abi: ERC20_ABI, functionName: "approve",
+        args: [CH.vault, amt], chainId: CH.chain.id,
+      });
+      await writeContractAsync({
+        address: CH.vault, abi: VAULT_ABI, functionName: "fundPlan",
+        args: [id, amt], chainId: CH.chain.id,
+      });
+      setStatus(`Topped up ${fmtUSD(amt, USD_D)} — the trail never goes quiet.`);
+      setRefresh((r) => r + 1);
+    } catch (e: any) {
+      setStatus("top-up failed: " + (e?.shortMessage ?? e?.message ?? e));
+    }
+  }
+
   async function cancel(id: bigint) {
     try {
       if (!(await needWalletChain())) return;
@@ -474,6 +501,8 @@ export default function App() {
         {myPlans.length === 0 && <p className="empty">No plans yet — launch one above.</p>}
         {myPlans.map((p) => {
           const total = p.equity[0] + p.equity[2] + p.equity[3];
+          const fillsLeft = p.amountPerFill > 0n ? p.usdgBalance / p.amountPerFill : 0n;
+          const lowFunds = p.active && fillsLeft < 3n;
           const delta = positionPnl(p, p.equity[2], USD_D);
           const rawHist = hist[p.feed?.toLowerCase?.() ?? ""] ?? [];
           const marks = fillsFor(p.id);
@@ -495,6 +524,13 @@ export default function App() {
                   {!p.active ? "closed" : p.paused ? "paused · corp. action" : "active"}
                 </span>
               </div>
+              {lowFunds && (
+                <div className="warnbanner">
+                  <strong>Low funds — ≈{String(fillsLeft)} fill{fillsLeft === 1n ? "" : "s"} left.</strong>
+                  <span>Top up so the trail never goes quiet mid-judging.</span>
+                  <button className="btn primary" onClick={() => topUp(p.id, p.amountPerFill)}>Top up {fmtUSD(p.amountPerFill * 10n, USD_D)}</button>
+                </div>
+              )}
               <div className="statgrid">
                 <div><span>Total value</span><strong className="hero-num">{fmtUSD(total, USD_D)}</strong></div>
                 <div><span>Stock held</span><strong>{Number(formatUnits(p.stockBalance, 18)).toFixed(4)}</strong></div>
@@ -503,6 +539,7 @@ export default function App() {
                 <div><span>Cadence</span><strong>{String(p.cadenceSec / 60n)} min</strong></div>
                 <div><span>Protection</span><strong>−{Number(p.stopLossBps) / 100}% / +{Number(p.takeProfitBps) / 100}%</strong></div>
                 <div><span>In earn</span><strong>{fmtUSD(p.equity[3], USD_D)}</strong></div>
+                <div><span>Fills left</span><strong className={lowFunds ? "neg" : ""}>≈{String(fillsLeft)}</strong></div>
                 <div><span>Last fill</span><strong style={{ fontSize: 16 }}>{p.lastFill > 0n ? fmtTs(p.lastFill) : "—"}</strong></div>
               </div>
               <div className="perfrow">
