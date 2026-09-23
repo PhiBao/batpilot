@@ -298,8 +298,8 @@ contract BatpilotVault is ReentrancyGuard {
         stock = p.stockBalance;
         (, int256 answer,,,) = IChainlinkFeed(p.feed).latestRoundData();
         if (answer > 0 && stock > 0) {
-            // feed has 8 decimals: value(1e18 USDG wei) = stock * price / 1e8
-            stockValue = (stock * uint256(answer)) / 1e8;
+            // 18-decimal scale, then down to USDG decimals (18 or 6).
+            stockValue = (stock * uint256(answer)) / 1e8 / (10 ** (18 - USDG_DECIMALS));
         }
         if (p.yieldShares > 0) {
             yieldValue = YIELD.previewRedeem(p.yieldShares);

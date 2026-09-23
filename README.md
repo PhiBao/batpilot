@@ -126,7 +126,7 @@ protection, earn) → verifiable trail with tx links → one-click manual execut
 
 | Contract | Address | Verification |
 |---|---|---|
-| BatpilotVault (V2) | `0x05295a3c41Ac537a5C1a5E9203eD7f98Be86A8bb` | [Blockscout](https://explorer.testnet.chain.robinhood.com/address/0x05295a3c41Ac537a5C1a5E9203ed7f98be86a8bb) |
+| BatpilotVault (V2) | `0x7a0F2fED43CfdAC86Ed13A0909e7669f48e83983` | [Blockscout](https://explorer.testnet.chain.robinhood.com/address/0x7a0F2fED43CfdAC86Ed13A0909e7669f48e83983) |
 | SessionGuard | `0x6601FF5F7a211179f5Af6F4aC3101E0d13ac4217` | Blockscout |
 | SessionVolEngine | `0xcBdDd6bF0d98Cc38cfc4E7aA37189ef8F4bc2A71` | Blockscout |
 | Stylus guard (`volBand` + firewall) | `0xcd587f1d57c24cff0d83c1a5f686d2d364114c55` | WASM onchain |
@@ -136,7 +136,7 @@ protection, earn) → verifiable trail with tx links → one-click manual execut
 
 | Contract | Address | Verification |
 |---|---|---|
-| BatpilotVault (V2) | `0xbA2fDa0a4411d8C2548d7dA5A4B32EEc8cD66483` | Sourcify (per-plan slippage, 6-decimal USDG) |
+| BatpilotVault (V2) | `0x5071a403633744C016fB31536c5c31A5685eeEA1` | Sourcify (per-plan slippage, cooldown, 6-decimal USDG) |
 | SessionGuard | `0x6792E51FBD24f9315282BD5b6c5E713dCc779C69` | Sourcify |
 | UniswapV3Adapter | `0xc6168fa5153E7AF6aFf0013D99A2B8D9670a1454` | Sourcify |
 | MorphoEarnAdapter | `0x457ae4d9e8CC1bC6bf3babA9133D1fCe283a9ABE` | Sourcify |

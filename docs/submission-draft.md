@@ -49,8 +49,10 @@ mainnet-fork proofs.
 - Repo: https://github.com/PhiBao/batpilot
 - App (chain switcher): https://batpilot.vercel.app
 - Demo video: <YOUTUBE_URL> (4 min: setup → live fill → refused fill → stop-loss → Earn sweep → fork replay)
-- Testnet vault (V2): https://explorer.testnet.chain.robinhood.com/address/0x05295a3c41Ac537a5C1a5E9203ed7f98be86a8bb
-- Mainnet vault: https://robin.etherscan.io/address/0xde7b9F01C566A4f8AdcF57CbFC738E5EA2b7Fa0a
+- Testnet vault (V2): https://explorer.testnet.chain.robinhood.com/address/0x7a0F2fED43CfdAC86Ed13A0909e7669f48e83983
+- Mainnet vault (V2): https://robin.etherscan.io/address/0x5071a403633744C016fB31536c5c31A5685eeEA1
+- First real mainnet fill ($5 NVDA @ $228.82, keeper-fired): https://robin.etherscan.io/tx/0x12e29b940cd94b683feda0bf1fe2c7ed27d784dec78722eb02c72df702db5689
+- Mainnet plan creation: https://robin.etherscan.io/tx/0x26ad8a862b5f72e6c9cf564ab73e5230ba86a5bff8a0a790d9d1d2264199763d
 - First keeper fill: https://explorer.testnet.chain.robinhood.com/tx/0x6756fd83818f8885e424c7e3f6ccbe3076000ddf9b8b4ee4d82c5d5eec4c70e2
 
 ## Roadmap (milestone-ready)

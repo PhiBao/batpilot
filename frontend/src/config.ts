@@ -128,7 +128,7 @@ export const CHAINS: Record<number, ChainCfg> = {
     "Robinhood Testnet",
     "https://rpc.testnet.chain.robinhood.com",
     "https://explorer.testnet.chain.robinhood.com",
-    "0x639794F956A4b2CC2C62a5DF9eE71B29a7C7a53E",
+    "0x7a0F2fED43CfdAC86Ed13A0909e7669f48e83983",
     "0x8856475f0787E5A4B2d39b88379Cd79fDD40B887",
     [
       { symbol: "NVDA", stock: "0xfB66148b3AF6CC7f1D25B63e49d4C8174145eFe7", feed: "0x1e034E0375de39260d0356B9F4686Ddca8557da1" },
@@ -141,7 +141,7 @@ export const CHAINS: Record<number, ChainCfg> = {
     "Robinhood Mainnet",
     "https://rpc.mainnet.chain.robinhood.com",
     "https://robin.etherscan.io",
-    "0xbA2fDa0a4411d8C2548d7dA5A4B32EEc8cD66483",
+    "0x5071a403633744C016fB31536c5c31A5685eeEA1",
     "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
     [
       { symbol: "NVDA", stock: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", feed: "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15" },

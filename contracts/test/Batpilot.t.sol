@@ -271,5 +271,8 @@ contract BatpilotTest is Test {
         assertGt(stockBal, 0);
         // minOut view matches the 6d scaling the vault used.
         assertEq(v6.minStockOut(50e6, uint256(P0), 200), (50e6 * 1e8) / uint256(P0) * 1e12 * 9800 / 10_000);
+        // Equity is denominated in USDG wei (6d here): stock leg ≈ $50.
+        (, , uint256 sv6,) = v6.planEquity(id);
+        assertApproxEqAbs(sv6, 50e6, 1e6);
     }
 }
