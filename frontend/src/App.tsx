@@ -165,9 +165,9 @@ export default function App() {
         })) as readonly [bigint, bigint, bigint, bigint];
         rows.push({
           id, owner: p[0], stock: p[1], feed: p[2], amountPerFill: p[3], cadenceSec: p[4],
-          stopLossBps: p[5], takeProfitBps: p[6], usdgBalance: p[9],
-          stockBalance: p[10], entryAvg: p[11], lastFill: p[12],
-          yieldShares: p[14], active: p[15], paused: p[16], equity,
+          stopLossBps: p[5], takeProfitBps: p[6], usdgBalance: p[10],
+          stockBalance: p[11], entryAvg: p[12], lastFill: p[13],
+          yieldShares: p[15], active: p[16], paused: p[17], equity,
         });
       }
       setPlans(rows);

@@ -30,6 +30,7 @@ const VAULT_ABI = [
       { name: "takeProfitBps", type: "uint256" },
       { name: "maxStaleSec", type: "uint256" },
       { name: "bandBps", type: "uint256" },
+      { name: "slipBps", type: "uint256" },
       { name: "usdgBalance", type: "uint256" },
       { name: "stockBalance", type: "uint256" },
       { name: "entryAvg", type: "uint256" },
@@ -107,11 +108,11 @@ async function tickOne(
       console.error(`[${label} plan ${id}] read failed: ${String(e?.message ?? e).slice(0, 120)}`);
       continue;
     }
-    if (!p[15]) continue;
+    if (!p[16]) continue; // plans(id).active
     active++;
-    const funded = p[9] as bigint;
+    const funded = p[10] as bigint;
     const perFill = p[3] as bigint;
-    const lastFill = p[12] as bigint;
+    const lastFill = p[13] as bigint;
     const cadence = p[4] as bigint;
 
     const nowSec = BigInt(Math.floor(Date.now() / 1000));
@@ -154,7 +155,7 @@ async function tickOne(
 
     // --- Protection (always checked — stop-losses can't wait for cadence) ---
     // Only meaningful with a position; silent when flat or calm.
-    if ((p[10] as bigint) > 0n) {
+    if ((p[11] as bigint) > 0n) {
       try {
         const res = (await pub.simulateContract({
           address: vault,

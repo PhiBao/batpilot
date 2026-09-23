@@ -95,7 +95,7 @@ async function tickTarget(t: Target, account: Address) {
       functionName: "plans",
       args: [id],
     });
-    if (!p[15]) continue; // plans(id).active
+        if (!p[16]) continue; // plans(id).active (V2: slipBps shifts indices)
     active++;
 
     try {
