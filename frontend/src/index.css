@@ -184,9 +184,13 @@ section { margin-top: 64px; }
 
 .fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr 1fr;
   gap: 20px 24px;
   margin-bottom: 26px;
+}
+
+@media (max-width: 900px) {
+  .fields { grid-template-columns: 1fr 1fr; }
 }
 
 label {
