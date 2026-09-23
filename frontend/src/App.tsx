@@ -130,12 +130,17 @@ export default function App() {
 
   const [stockIdx, setStockIdx] = useState(0);
   const [amount, setAmount] = useState("50");
-  const [cadenceMin, setCadenceMin] = useState("1");
+  const [cadenceMin, setCadenceMin] = useState("15");
   const [sl, setSl] = useState("8");
   const [tp, setTp] = useState("20");
+  const [slip, setSlip] = useState("2");
   const [fund, setFund] = useState("1000");
+  const [newPrice, setNewPrice] = useState("");
+  const [page, setPage] = useState(0);
+  const PAGE = 8;
 
   useEffect(() => setStockIdx(0), [chainId]);
+  useEffect(() => setPage(0), [chainId]);
 
   const refreshAll = useCallback(async () => {
     try {
@@ -275,6 +280,7 @@ export default function App() {
           BigInt(Math.round(Number(sl) * 100)),
           BigInt(Math.round(Number(tp) * 100)),
           3600n, 500n,
+          BigInt(Math.round(Number(slip) * 100)),
         ],
         chainId: CH.chain.id,
       });
@@ -372,8 +378,28 @@ export default function App() {
     }
   }
 
-  async function faucet() {
+  // Demo market control (mock feeds only — real Chainlink feeds reject this).
+  async function setFeedPrice() {
     if (!address || !(await needWalletChain())) return;
+    const v = Number(newPrice);
+    if (!v || v <= 0) {
+      setStatus("enter a price like 162 to simulate a crash.");
+      return;
+    }
+    try {
+      setStatus(`setting demo ${CH.stocks[stockIdx].symbol} price to $${v}…`);
+      await writeContractAsync({
+        address: CH.stocks[stockIdx].feed, abi: FEED_ABI, functionName: "setPrice",
+        args: [BigInt(Math.round(v * 1e8))], chainId: CH.chain.id,
+      });
+      setStatus(`demo price set to $${v} — watch the guard and protection react.`);
+      setRefresh((r) => r + 1);
+    } catch {
+      setStatus("price control unavailable here — this feed is a real Chainlink feed.");
+    }
+  }
+
+  async function faucet() {    if (!address || !(await needWalletChain())) return;
     try {
       setStatus("Minting test USDG…");
       await writeContractAsync({
@@ -399,8 +425,7 @@ export default function App() {
     [trail]
   );
 
-  const portfolio = useMemo(() => {
-    let value = 0n;
+  const portfolio = useMemo(() => {    let value = 0n;
     let pnl = 0n;
     for (const p of myPlans) {
       value += p.equity[0] + p.equity[2] + p.equity[3];
@@ -409,6 +434,9 @@ export default function App() {
     }
     return { value, pnl };
   }, [myPlans, USD_D]);
+
+  const pageCount = Math.max(1, Math.ceil(trail.length / PAGE));
+  const safePage = Math.min(page, pageCount - 1);
 
   return (
     <div className="page">
@@ -468,9 +496,10 @@ export default function App() {
             </label>
             <label>Buy amount · USDG<input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
             <label>Every · min<input value={cadenceMin} onChange={(e) => setCadenceMin(e.target.value)} /></label>
-            <label>Stop-loss · %<input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
-            <label>Take-profit · %<input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
-            <label>Fund with · USDG<input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
+          <label>Stop-loss · %<input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
+          <label>Take-profit · %<input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
+          <label>Slippage · %<input value={slip} onChange={(e) => setSlip(e.target.value)} /></label>
+          <label>Fund with · USDG<input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
           </div>
           <div className="btnrow">
             <button className="btn primary" disabled={!isConnected} onClick={setupPlan}>
@@ -480,6 +509,17 @@ export default function App() {
               <button className="btn" onClick={faucet}>Faucet · +10k test USDG</button>
             )}
           </div>
+          {isConnected && chainId !== 4663 && (
+            <div className="marketctl">
+              <span>Demo market — move the mock feed to rehearse protection:</span>
+              <input
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                placeholder={`e.g. ${(Number(CH.stocks[stockIdx].refPrice.replace(/[^0-9.]/g, "")) * 0.9).toFixed(0)} for a crash`}
+              />
+              <button className="btn" onClick={setFeedPrice}>Set {CH.stocks[stockIdx].symbol} price</button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -582,7 +622,7 @@ export default function App() {
           <span className="dim">every fill, refusal and protection — onchain</span>
         </div>
         {trail.length === 0 && <p className="empty">No events yet.</p>}
-        {trail.map((t) => (
+        {trail.slice(safePage * PAGE, safePage * PAGE + PAGE).map((t) => (
           <div className="trail" key={t.key}>
             <span className={`dot ${t.kind}`} />
             <div>
@@ -597,6 +637,13 @@ export default function App() {
             </div>
           </div>
         ))}
+        {pageCount > 1 && (
+          <div className="btnrow pager">
+            <button className="btn" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>← Newer</button>
+            <span className="dim small">page {safePage + 1} / {pageCount} · {trail.length} events</span>
+            <button className="btn" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>Older →</button>
+          </div>
+        )}
       </section>
 
       <footer>

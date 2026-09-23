@@ -27,6 +27,7 @@ contract BatpilotVault is ReentrancyGuard {
         uint256 takeProfitBps; // 0 = disabled
         uint256 maxStaleSec; // oracle freshness requirement
         uint256 bandBps; // max move vs last price per fill, 0 = disabled
+        uint256 slipBps; // max slippage vs oracle on execution, e.g. 200 = 2%
         uint256 usdgBalance; // free USDG in plan
         uint256 stockBalance; // stock wei held for plan
         uint256 entryAvg; // weighted avg fill price, feed decimals
@@ -41,6 +42,7 @@ contract BatpilotVault is ReentrancyGuard {
     ISessionGuard public immutable GUARD;
     ISwapRouter public immutable ROUTER;
     IYieldVault public immutable YIELD;
+    uint8 public immutable USDG_DECIMALS; // 18 (mocks) or 6 (real USDG)
 
     uint256 public planCount;
 
@@ -64,11 +66,12 @@ contract BatpilotVault is ReentrancyGuard {
     error ZeroAmount();
     error InsufficientBalance();
 
-    constructor(address usdg, address guard, address router, address yieldVault) {
+    constructor(address usdg, address guard, address router, address yieldVault, uint8 usdgDecimals) {
         USDG = IERC20(usdg);
         GUARD = ISessionGuard(guard);
         ROUTER = ISwapRouter(router);
         YIELD = IYieldVault(yieldVault);
+        USDG_DECIMALS = usdgDecimals;
     }
 
     /// @notice Create a plan. Caller must have approved nothing yet; funding is separate.
@@ -80,11 +83,13 @@ contract BatpilotVault is ReentrancyGuard {
         uint256 stopLossBps,
         uint256 takeProfitBps,
         uint256 maxStaleSec,
-        uint256 bandBps
+        uint256 bandBps,
+        uint256 slipBps
     ) external returns (uint256 planId) {
         if (amountPerFill == 0) revert ZeroAmount();
         if (cadenceSec == 0) revert ZeroAmount();
         require(stockLossSane(stopLossBps) && takeProfitSane(takeProfitBps), "Batpilot: bad bps");
+        require(slipBps <= 2000, "Batpilot: slip too wide");
 
         planId = planCount++;
         uint256 mult = 1e18;
@@ -102,6 +107,7 @@ contract BatpilotVault is ReentrancyGuard {
             takeProfitBps: takeProfitBps,
             maxStaleSec: maxStaleSec,
             bandBps: bandBps,
+            slipBps: slipBps,
             usdgBalance: 0,
             stockBalance: 0,
             entryAvg: 0,
@@ -158,7 +164,8 @@ contract BatpilotVault is ReentrancyGuard {
         }
 
         USDG.forceApprove(address(ROUTER), p.amountPerFill);
-        uint256 stockOut = ROUTER.swapUSDGForStock(p.stock, p.amountPerFill, 0);
+        uint256 stockOut =
+            ROUTER.swapUSDGForStock(p.stock, p.amountPerFill, minStockOut(p.amountPerFill, price, p.slipBps));
 
         // Weighted average entry price.
         uint256 prevValue = p.stockBalance * p.entryAvg;
@@ -200,7 +207,8 @@ contract BatpilotVault is ReentrancyGuard {
 
         uint256 stockIn = p.stockBalance;
         IERC20(p.stock).forceApprove(address(ROUTER), stockIn);
-        uint256 usdgOut = ROUTER.swapStockForUSDG(p.stock, stockIn, 0);
+        uint256 usdgOut =
+            ROUTER.swapStockForUSDG(p.stock, stockIn, minUsdgOut(stockIn, price, p.slipBps));
         p.stockBalance = 0;
         p.usdgBalance += usdgOut;
         // Reset entry so a later re-entry starts clean; keep plan active for DCA to resume.
@@ -242,7 +250,11 @@ contract BatpilotVault is ReentrancyGuard {
 
         if (p.stockBalance > 0) {
             IERC20(p.stock).forceApprove(address(ROUTER), p.stockBalance);
-            uint256 out = ROUTER.swapStockForUSDG(p.stock, p.stockBalance, 0);
+            (, int256 exitAnswer,,,) = IChainlinkFeed(p.feed).latestRoundData();
+            uint256 exitFloor = exitAnswer > 0
+                ? minUsdgOut(p.stockBalance, uint256(exitAnswer), 500)
+                : 0;
+            uint256 out = ROUTER.swapStockForUSDG(p.stock, p.stockBalance, exitFloor);
             p.usdgBalance += out;
             p.stockBalance = 0;
         }
@@ -279,6 +291,30 @@ contract BatpilotVault is ReentrancyGuard {
 
     function stockLossSane(uint256 bps) internal pure returns (bool) {
         return bps <= 10_000;
+    }
+
+    /// @notice Oracle-implied minimum stock out for a USDG spend, haircut by
+    /// slipBps. Scales 6-decimal USDG up to 18-decimal stock math.
+    function minStockOut(uint256 usdgIn, uint256 price, uint256 slipBps)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 fair = (usdgIn * 1e8) / price;
+        if (USDG_DECIMALS == 6) fair *= 1e12;
+        return (fair * (10_000 - slipBps)) / 10_000;
+    }
+
+    /// @notice Oracle-implied minimum USDG out for a stock sale, haircut by
+    /// slipBps. Scales 18-decimal stock math down to 6-decimal USDG.
+    function minUsdgOut(uint256 stockIn, uint256 price, uint256 slipBps)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 fair = (stockIn * price) / 1e8;
+        if (USDG_DECIMALS == 6) fair /= 1e12;
+        return (fair * (10_000 - slipBps)) / 10_000;
     }
 
     function takeProfitSane(uint256 bps) internal pure returns (bool) {

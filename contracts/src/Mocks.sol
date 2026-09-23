@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IChainlinkFeed, IStockToken, ISwapRouter, IYieldVault} from "./IBatpilot.sol";
@@ -12,6 +13,13 @@ contract MockUSDG is ERC20 {
     constructor() ERC20("Mock USDG", "mUSDG") {}
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
+    }
+}
+
+/// @notice 6-decimal variant mirroring real USDG (for decimals-scaling tests).
+contract MockUSDG6 is MockUSDG {
+    function decimals() public pure override returns (uint8) {
+        return 6;
     }
 }
 
@@ -100,15 +108,21 @@ contract MockFeed is IChainlinkFeed {
 
 /// @notice Mock AMM router priced off registered feeds.
 /// price P (8d) = USD per whole stock token.
-/// stockOut = usdgIn * 1e8 / P ; usdgOut = stockIn * P / 1e8.
+/// Scales to the USDG token's own decimals (18d mocks, 6d production-like).
 contract MockSwapRouter is ISwapRouter {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable USDG;
+    uint256 public immutable USDG_SCALE; // 1e(18 - usdgDecimals)
     mapping(address => address) public feedOf; // stock => feed
 
     constructor(address usdg) {
         USDG = IERC20(usdg);
+        uint8 dec = 18;
+        try IERC20Metadata(usdg).decimals() returns (uint8 d) {
+            dec = d;
+        } catch {}
+        USDG_SCALE = 10 ** (18 - dec);
     }
 
     function setFeed(address stock, address feed) external {
@@ -125,7 +139,7 @@ contract MockSwapRouter is ISwapRouter {
         external
         returns (uint256 stockOut)
     {
-        stockOut = (usdgIn * 1e8) / priceOf(stock);
+        stockOut = (usdgIn * 1e8 * USDG_SCALE) / priceOf(stock);
         require(stockOut >= minStockOut, "MockRouter: slippage");
         USDG.safeTransferFrom(msg.sender, address(this), usdgIn);
         IERC20(stock).safeTransfer(msg.sender, stockOut);
@@ -135,7 +149,7 @@ contract MockSwapRouter is ISwapRouter {
         external
         returns (uint256 usdgOut)
     {
-        usdgOut = (stockIn * priceOf(stock)) / 1e8;
+        usdgOut = (stockIn * priceOf(stock)) / 1e8 / USDG_SCALE;
         require(usdgOut >= minUsdgOut, "MockRouter: slippage");
         IERC20(stock).safeTransferFrom(msg.sender, address(this), stockIn);
         USDG.safeTransfer(msg.sender, usdgOut);

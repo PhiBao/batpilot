@@ -84,7 +84,8 @@ contract Deploy is Script {
             "Deploy: missing deps"
         );
 
-        BatpilotVault vault = new BatpilotVault(usdg, address(guard), router, yieldVault);
+        BatpilotVault vault =
+            new BatpilotVault(usdg, address(guard), router, yieldVault, mocks ? 18 : 6);
 
         vm.stopBroadcast();
 

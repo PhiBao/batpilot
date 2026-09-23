@@ -118,12 +118,12 @@ protection, earn) → verifiable trail with tx links → one-click manual execut
 
 ## 4. Deployments (live, via QuickNode)
 
-**Robinhood testnet (46630)** — full mock stack, keeper filling plan #0:
+**Robinhood testnet (46630)** — full mock stack (V2: per-plan slippage + decimals-aware), keeper filling:
 
 | Contract | Address | Verification |
 |---|---|---|
-| BatpilotVault | `0x9e75555936a2097Ce281De7EFb5CdCC281277BF5` | [Blockscout](https://explorer.testnet.chain.robinhood.com/address/0x9e75555936a2097Ce281De7EFb5CdCC281277BF5) |
-| SessionGuard | `0x7F50e78b1763c05F944D898EeCC2081c767b2113` | Blockscout |
+| BatpilotVault (V2) | `0x05295a3c41Ac537a5C1a5E9203eD7f98Be86A8bb` | [Blockscout](https://explorer.testnet.chain.robinhood.com/address/0x05295a3c41Ac537a5C1a5E9203ed7f98be86a8bb) |
+| SessionGuard | `0x6601FF5F7a211179f5Af6F4aC3101E0d13ac4217` | Blockscout |
 | SessionVolEngine | `0xcBdDd6bF0d98Cc38cfc4E7aA37189ef8F4bc2A71` | Blockscout |
 | Stylus guard (`volBand` + firewall) | `0xcd587f1d57c24cff0d83c1a5f686d2d364114c55` | WASM onchain |
 | MockSwapRouter / MockYieldVault / mUSDG / NVDA / TSLA / feeds | see broadcast record | Blockscout |

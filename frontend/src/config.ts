@@ -24,6 +24,7 @@ export const VAULT_ABI = [
       { name: "amountPerFill", type: "uint256" }, { name: "cadenceSec", type: "uint256" },
       { name: "stopLossBps", type: "uint256" }, { name: "takeProfitBps", type: "uint256" },
       { name: "maxStaleSec", type: "uint256" }, { name: "bandBps", type: "uint256" },
+      { name: "slipBps", type: "uint256" },
     ],
     outputs: [{ type: "uint256" }],
   },
@@ -65,6 +66,11 @@ export const FEED_ABI = [
       { name: "startedAt", type: "uint256" }, { name: "updatedAt", type: "uint256" },
       { name: "answeredInRound", type: "uint80" },
     ],
+  },
+  {
+    type: "function", name: "setPrice", stateMutability: "nonpayable",
+    inputs: [{ name: "p", type: "int256" }],
+    outputs: [],
   },
 ] as const;
 
@@ -120,11 +126,11 @@ export const CHAINS: Record<number, ChainCfg> = {
     "Robinhood Testnet",
     "https://rpc.testnet.chain.robinhood.com",
     "https://explorer.testnet.chain.robinhood.com",
-    "0x9e75555936a2097Ce281De7EFb5CdCC281277BF5",
-    "0xDFEcE74f0aDBa3cc18B065DBA0DEc82bE52AA830",
+    "0x05295a3c41Ac537a5C1a5E9203eD7f98Be86A8bb",
+    "0x99733e6EeE1E96b0f9DADd38d3961049b00373c2",
     [
-      { symbol: "NVDA", stock: "0x910e17CC1Ea45B824E3Be700430E3F2cD29c5a4E", feed: "0x2777C66CDE6C15D301cd0bf03C302b56E298e431", refPrice: "$180" },
-      { symbol: "TSLA", stock: "0xFD842da1854e40c55F19FE63a879CB65cd3B9A28", feed: "0xD6523ac0d3004E57799AA299E68E8788618bA189", refPrice: "$250" },
+      { symbol: "NVDA", stock: "0x9d042fE47D8BaabC34bc224044698c04796D5b56", feed: "0x8B21368c3a1D3530DFd7eFAE66173Cb30F4fd42e", refPrice: "$180" },
+      { symbol: "TSLA", stock: "0x6E8330F88BbC94a7B652C47a4B770f96EE8E207C", feed: "0x081974a63EF78581f00fde9Ce48f673474eD157C", refPrice: "$250" },
     ],
     "faucet: faucet.testnet.chain.robinhood.com (ETH + test stocks)",
   ),
