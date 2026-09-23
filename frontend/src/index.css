@@ -463,6 +463,7 @@ button {
   gap: 6px;
   max-width: 100%;
   line-height: 1.5;
+  white-space: nowrap;
 }
 
 .labrow .tip {

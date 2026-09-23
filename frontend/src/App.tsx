@@ -545,13 +545,13 @@ export default function App() {
                 ))}
               </select>
             </label>
-            <label><span className="labrow">Buy amount · USDG <Tip text="How much pocket money the robot spends for you each time it shops." /></span> <input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+            <label><span className="labrow">Buy · USDG <Tip text="How much pocket money the robot spends for you each time it shops." /></span> <input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
             <label><span className="labrow">Every · min <Tip text="How often the robot goes shopping. 15 means every 15 minutes." /></span> <input value={cadenceMin} onChange={(e) => setCadenceMin(e.target.value)} /></label>
-            <label><span className="labrow">Stop-loss · % <Tip text="If your stocks fall this far below what you paid on average, the robot sells everything to keep you safe." /></span> <input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
-            <label><span className="labrow">Take-profit · % <Tip text="If your stocks grow this far above what you paid, the robot sells and keeps the winnings." /></span> <input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
-            <label><span className="labrow">Slippage · % <Tip text="Prices wiggle while buying. This is how much wiggle is OK. 2 is safe." /></span> <input value={slip} onChange={(e) => setSlip(e.target.value)} /></label>
-            <label><span className="labrow">Cooldown · min <Tip text="After the robot sells to protect you, it naps this long before shopping again — so it never buys straight back into a crash." /></span> <input value={coolMin} onChange={(e) => setCoolMin(e.target.value)} /></label>
-            <label><span className="labrow">Fund with · USDG <Tip text="The piggy bank. The robot only spends from here, and only you can take money back out." /></span> <input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
+            <label><span className="labrow">Stop · % <Tip text="If your stocks fall this far below what you paid on average, the robot sells everything to keep you safe." /></span> <input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
+            <label><span className="labrow">Take · % <Tip text="If your stocks grow this far above what you paid, the robot sells and keeps the winnings." /></span> <input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
+            <label><span className="labrow">Slip · % <Tip text="Prices wiggle while buying. This is how much wiggle is OK. 2 is safe." /></span> <input value={slip} onChange={(e) => setSlip(e.target.value)} /></label>
+            <label><span className="labrow">Cooldown <Tip text="After the robot sells to protect you, it naps this long before shopping again — so it never buys straight back into a crash." /></span> <input value={coolMin} onChange={(e) => setCoolMin(e.target.value)} /></label>
+            <label><span className="labrow">Fund · USDG <Tip text="The piggy bank. The robot only spends from here, and only you can take money back out." /></span> <input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
           </div>
           <div className="btnrow">
             <button className="btn primary" disabled={!isConnected} onClick={setupPlan}>
