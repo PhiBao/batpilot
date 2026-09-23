@@ -125,6 +125,7 @@ export default function App() {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [trail, setTrail] = useState<TrailItem[]>([]);
   const [hist, setHist] = useState<Record<string, HistPoint[]>>({});
+  const [live, setLive] = useState<Record<string, bigint>>({});
   const [status, setStatus] = useState("");
   const [refresh, setRefresh] = useState(0);
 
@@ -136,6 +137,7 @@ export default function App() {
   const [slip, setSlip] = useState("2");
   const [fund, setFund] = useState("1000");
   const [newPrice, setNewPrice] = useState("");
+  const [priceTouched, setPriceTouched] = useState(false);
   const PAGE = 8;
   const [visible, setVisible] = useState(PAGE);
   const sentinel = useRef<HTMLDivElement | null>(null);
@@ -158,6 +160,19 @@ export default function App() {
 
   useEffect(() => setStockIdx(0), [chainId]);
   useEffect(() => setVisible(PAGE), [chainId]);
+
+  // Default the custom-price field to the newest onchain price whenever the
+  // stock or chain changes, or a first quote arrives — never while typing.
+  const livePrice = live[CH.stocks[stockIdx]?.feed.toLowerCase() ?? ""];
+  useEffect(() => {
+    setPriceTouched(false);
+    setNewPrice("");
+  }, [stockIdx, chainId]);
+  useEffect(() => {
+    if (!priceTouched && livePrice && livePrice > 0n) {
+      setNewPrice((Number(livePrice) / 1e8).toFixed(2));
+    }
+  }, [livePrice, priceTouched]);
 
   const refreshAll = useCallback(async () => {
     try {
@@ -225,6 +240,21 @@ export default function App() {
       }
       items.sort((x, y) => (x.block > y.block ? -1 : 1));
       setTrail(items);
+
+      // Live prices straight from the feeds — the same numbers the contracts
+      // enforce. No hardcoded strings anywhere in the UI.
+      const lp: Record<string, bigint> = {};
+      await Promise.all(
+        CH.stocks.map(async (s) => {
+          try {
+            const rd = (await client.readContract({
+              address: s.feed, abi: FEED_ABI, functionName: "latestRoundData",
+            })) as any;
+            if (rd[1] > 0n) lp[s.feed.toLowerCase()] = rd[1] as bigint;
+          } catch { /* feed unreadable */ }
+        })
+      );
+      setLive(lp);
 
       // Feed history per unique stock feed (cap 24 rounds back) for sparklines.
       const feeds = [...new Set(rows.map((r) => r.feed))];
@@ -504,7 +534,7 @@ export default function App() {
             <label>Stock
               <select value={stockIdx} onChange={(e) => setStockIdx(Number(e.target.value))}>
                 {CH.stocks.map((s, i) => (
-                  <option key={s.symbol} value={i}>{s.symbol} · {s.refPrice}</option>
+                  <option key={s.symbol} value={i}>{s.symbol}</option>
                 ))}
               </select>
             </label>
@@ -523,17 +553,30 @@ export default function App() {
               <button className="btn" onClick={faucet}>Faucet · +10k test USDG</button>
             )}
           </div>
-          {isConnected && chainId !== 4663 && (
-            <div className="marketctl">
-              <span>Demo market — move the mock feed to rehearse protection:</span>
-              <input
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                placeholder={`e.g. ${(Number(CH.stocks[stockIdx].refPrice.replace(/[^0-9.]/g, "")) * 0.9).toFixed(0)} for a crash`}
-              />
-              <button className="btn" onClick={setFeedPrice}>Set {CH.stocks[stockIdx].symbol} price</button>
-            </div>
-          )}
+          <div className="marketctl">
+            <span>
+              {CH.stocks[stockIdx].symbol} live{" "}
+              <strong>{livePrice && livePrice > 0n ? fmtPrice(livePrice) : "…"}</strong>
+              {chainId === 4663
+                ? " · real Chainlink feed — moves with the market"
+                : " · demo feed synced to the live market"}
+            </span>
+            {isConnected && chainId !== 4663 && (
+              <>
+                <input
+                  value={newPrice}
+                  onChange={(e) => { setPriceTouched(true); setNewPrice(e.target.value); }}
+                  placeholder="custom price"
+                />
+                <button className="btn" onClick={setFeedPrice}>
+                  Set {CH.stocks[stockIdx].symbol} price
+                </button>
+              </>
+            )}
+            {isConnected && chainId === 4663 && (
+              <span className="dim small">Real feeds can't be moved — switch to testnet to rehearse crashes.</span>
+            )}
+          </div>
         </div>
       </section>
 
