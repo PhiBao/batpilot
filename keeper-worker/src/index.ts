@@ -7,6 +7,16 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
+const FEED_SETPRICE_ABI = [
+  {
+    type: "function",
+    name: "setPrice",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "p", type: "int256" }],
+    outputs: [],
+  },
+] as const;
+
 const VAULT_ABI = [
   {
     type: "function",
@@ -65,6 +75,8 @@ const REASONS = ["allow/due-check", "STALE", "PAUSED", "BAND_BREACH", "INVALID_P
 type Env = {
   PRIVATE_KEY: string;
   WATCH: string; // "label:chainId:vault:rpc,label:..."
+  CMC_API_KEY?: string;
+  PRICE_FEEDS?: string; // "NVDA:0xfeed,TSLA:0xfeed" (testnet mocks only)
 };
 
 async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
@@ -146,7 +158,7 @@ async function tickOne(
             abi: VAULT_ABI,
             functionName: "executeDCA",
             args: [id],
-            account: account.address,
+            account,
           })
         )) as any;
         const [executed, reason] = res.result as [boolean, number];
@@ -157,7 +169,7 @@ async function tickOne(
               abi: VAULT_ABI,
               functionName: "executeDCA",
               args: [id],
-              account: account.address,
+              account,
               chain,
             })
           );
@@ -180,7 +192,7 @@ async function tickOne(
             abi: VAULT_ABI,
             functionName: "executeProtection",
             args: [id],
-            account: account.address,
+            account,
           })
         )) as any;
         const code = res.result as number;
@@ -191,7 +203,7 @@ async function tickOne(
               abi: VAULT_ABI,
               functionName: "executeProtection",
               args: [id],
-              account: account.address,
+              account,
               chain,
             })
           );
@@ -229,4 +241,7 @@ async function runAll(env: Env) {
       console.error(`[${label}] tick failed: ${String(e?.message ?? e).slice(0, 200)}`);
     }
   }
+  // Demo price sync runs as a GitHub Actions cron (see
+  // .github/workflows/sync-prices.yml) — Workers egress can't write to
+  // testnet RPCs, so the worker stays read/execute-only for keeper duty.
 }

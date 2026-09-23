@@ -11,5 +11,9 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["*/1 * * * *"]
 
+# Demo feed map (testnet mocks only — mainnet uses real Chainlink).
+[vars]
+PRICE_FEEDS = "NVDA:0x8B21368c3a1D3530DFd7eFAE66173Cb30F4fd42e,TSLA:0x081974a63EF78581f00fde9Ce48f673474eD157C"
+
 [observability]
 enabled = true

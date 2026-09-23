@@ -498,7 +498,15 @@ button {
   gap: 14px;
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
+  animation: rise 0.45s ease both;
 }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.trailcount { margin-top: 14px; }
 
 .dot {
   width: 11px;

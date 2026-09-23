@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useAccount,
   useConnect,
@@ -136,11 +136,28 @@ export default function App() {
   const [slip, setSlip] = useState("2");
   const [fund, setFund] = useState("1000");
   const [newPrice, setNewPrice] = useState("");
-  const [page, setPage] = useState(0);
   const PAGE = 8;
+  const [visible, setVisible] = useState(PAGE);
+  const sentinel = useRef<HTMLDivElement | null>(null);
+
+  // Infinite scroll: reveal more as the sentinel enters view.
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const ob = new IntersectionObserver(
+      (es) => {
+        if (es.some((e) => e.isIntersecting)) {
+          setVisible((v) => Math.min(v + PAGE, trail.length));
+        }
+      },
+      { rootMargin: "400px" }
+    );
+    ob.observe(el);
+    return () => ob.disconnect();
+  }, [trail.length]);
 
   useEffect(() => setStockIdx(0), [chainId]);
-  useEffect(() => setPage(0), [chainId]);
+  useEffect(() => setVisible(PAGE), [chainId]);
 
   const refreshAll = useCallback(async () => {
     try {
@@ -435,9 +452,6 @@ export default function App() {
     return { value, pnl };
   }, [myPlans, USD_D]);
 
-  const pageCount = Math.max(1, Math.ceil(trail.length / PAGE));
-  const safePage = Math.min(page, pageCount - 1);
-
   return (
     <div className="page">
       <div className="topbar">
@@ -622,7 +636,7 @@ export default function App() {
           <span className="dim">every fill, refusal and protection — onchain</span>
         </div>
         {trail.length === 0 && <p className="empty">No events yet.</p>}
-        {trail.slice(safePage * PAGE, safePage * PAGE + PAGE).map((t) => (
+        {trail.slice(0, Math.min(visible, trail.length)).map((t) => (
           <div className="trail" key={t.key}>
             <span className={`dot ${t.kind}`} />
             <div>
@@ -637,12 +651,12 @@ export default function App() {
             </div>
           </div>
         ))}
-        {pageCount > 1 && (
-          <div className="btnrow pager">
-            <button className="btn" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>← Newer</button>
-            <span className="dim small">page {safePage + 1} / {pageCount} · {trail.length} events</span>
-            <button className="btn" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>Older →</button>
-          </div>
+        <div ref={sentinel} />
+        {trail.length > 0 && (
+          <p className="dim small trailcount">
+            showing {Math.min(visible, trail.length)} of {trail.length} events
+            {visible < trail.length ? " · scroll for more" : " · end"}
+          </p>
         )}
       </section>
 

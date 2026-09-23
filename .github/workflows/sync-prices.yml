@@ -1,0 +1,29 @@
+name: sync-demo-prices
+
+# Pushes live CMC quotes into the testnet mock feeds every 5 minutes so the
+# demo market moves with reality. Secrets (repo Settings → Secrets → Actions):
+#   CMC_API_KEY   — CoinMarketCap Pro key (stocks via tokenized-stock listings)
+#   TESTNET_KEY   — keeper key (only ever touches permissionless mock setPrice)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: keeper-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save viem
+      - run: node scripts/sync-prices.mjs
+        env:
+          CMC_API_KEY: ${{ secrets.CMC_API_KEY }}
+          TESTNET_KEY: ${{ secrets.TESTNET_KEY }}
