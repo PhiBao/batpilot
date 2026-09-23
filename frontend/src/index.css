@@ -449,6 +449,78 @@ button {
 
 .planstory strong { color: var(--ink); }
 
+.labrow {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.labrow .tip {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+/* ---------- tooltips: plain words for every field ---------- */
+.tip {
+  position: relative;
+  display: inline-block;
+  margin-left: 7px;
+  vertical-align: 1px;
+}
+
+.tipdot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  cursor: help;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.tip:hover .tipdot,
+.tip:focus .tipdot {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.tip .tipbox {
+  display: none;
+  position: absolute;
+  z-index: 50;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: 240px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  white-space: normal;
+}
+
+.tip:hover .tipbox,
+.tip:focus .tipbox,
+.tip:focus-within .tipbox {
+  display: block;
+}
+
 .statgrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

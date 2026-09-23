@@ -95,8 +95,16 @@ type TrailItem = {
   fillTs?: bigint;
 };
 
-function positionPnl(p: PlanRow, stockValue: bigint, usdD: number) {
-  if (p.stockBalance === 0n || p.entryAvg === 0n) return null;
+function Tip({ text }: { text: string }) {
+  return (
+    <span className="tip" tabIndex={0} aria-label={text}>
+      <span className="tipdot" aria-hidden="true">?</span>
+      <span className="tipbox" role="tooltip">{text}</span>
+    </span>
+  );
+}
+
+function positionPnl(p: PlanRow, stockValue: bigint, usdD: number) {  if (p.stockBalance === 0n || p.entryAvg === 0n) return null;
   const costRaw = (p.stockBalance * p.entryAvg) / BigInt(1e8); // 18-dec scale
   const cost = usdD === 6 ? costRaw / BigInt(1e12) : costRaw;
   if (cost === 0n) return null;
@@ -513,20 +521,20 @@ export default function App() {
         </div>
         <div className="panel">
           <div className="fields">
-            <label>Stock
+            <label><span className="labrow">Stock <Tip text="Which US company you want to own a little piece of, over and over." /></span>
               <select value={stockIdx} onChange={(e) => setStockIdx(Number(e.target.value))}>
                 {CH.stocks.map((s, i) => (
                   <option key={s.symbol} value={i}>{s.symbol}</option>
                 ))}
               </select>
             </label>
-            <label>Buy amount · USDG<input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
-            <label>Every · min<input value={cadenceMin} onChange={(e) => setCadenceMin(e.target.value)} /></label>
-          <label>Stop-loss · %<input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
-          <label>Take-profit · %<input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
-          <label>Slippage · %<input value={slip} onChange={(e) => setSlip(e.target.value)} /></label>
-          <label>Cooldown · min<input value={coolMin} onChange={(e) => setCoolMin(e.target.value)} /></label>
-          <label>Fund with · USDG<input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
+            <label><span className="labrow">Buy amount · USDG <Tip text="How much pocket money the robot spends for you each time it shops." /></span> <input value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+            <label><span className="labrow">Every · min <Tip text="How often the robot goes shopping. 15 means every 15 minutes." /></span> <input value={cadenceMin} onChange={(e) => setCadenceMin(e.target.value)} /></label>
+            <label><span className="labrow">Stop-loss · % <Tip text="If your stocks fall this far below what you paid on average, the robot sells everything to keep you safe." /></span> <input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
+            <label><span className="labrow">Take-profit · % <Tip text="If your stocks grow this far above what you paid, the robot sells and keeps the winnings." /></span> <input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
+            <label><span className="labrow">Slippage · % <Tip text="Prices wiggle while buying. This is how much wiggle is OK. 2 is safe." /></span> <input value={slip} onChange={(e) => setSlip(e.target.value)} /></label>
+            <label><span className="labrow">Cooldown · min <Tip text="After the robot sells to protect you, it naps this long before shopping again — so it never buys straight back into a crash." /></span> <input value={coolMin} onChange={(e) => setCoolMin(e.target.value)} /></label>
+            <label><span className="labrow">Fund with · USDG <Tip text="The piggy bank. The robot only spends from here, and only you can take money back out." /></span> <input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
           </div>
           <div className="btnrow">
             <button className="btn primary" disabled={!isConnected} onClick={setupPlan}>
@@ -625,21 +633,21 @@ export default function App() {
               <div className="statgrid">
                 <div><span>Total value</span><strong className="hero-num">{fmtUSD(total, USD_D)}</strong></div>
                 <div><span>Stock held</span><strong>{Number(formatUnits(p.stockBalance, 18)).toFixed(4)}</strong></div>
-                <div><span>Avg entry</span><strong>{p.entryAvg > 0n ? fmtPrice(p.entryAvg) : "—"}</strong></div>
+                <div><span>Avg entry <Tip text="The average price you paid across all your buys. Protection is measured from here." /></span><strong>{p.entryAvg > 0n ? fmtPrice(p.entryAvg) : "—"}</strong></div>
                 <div><span>Per fill</span><strong>{fmtUSD(p.amountPerFill, USD_D)}</strong></div>
                 <div><span>Cadence</span><strong>{String(p.cadenceSec / 60n)} min</strong></div>
                 <div><span>Protection</span><strong>−{Number(p.stopLossBps) / 100}% / +{Number(p.takeProfitBps) / 100}%</strong></div>
                 <div><span>In earn</span><strong>{fmtUSD(p.equity[3], USD_D)}</strong></div>
-                <div><span>Fills left</span><strong className={lowFunds ? "neg" : ""}>≈{String(fillsLeft)}</strong></div>
+                <div><span>Fills left <Tip text="How many more shopping trips your piggy bank can pay for." /></span><strong className={lowFunds ? "neg" : ""}>≈{String(fillsLeft)}</strong></div>
                 <div><span>Last fill</span><strong style={{ fontSize: 16 }}>{p.lastFill > 0n ? fmtTs(p.lastFill) : "—"}</strong></div>
               </div>
               <div className="perfrow">
                 <div className="spark">
-                  <span>Live price · fills marked</span>
+                  <span>Live price · fills marked <Tip text="The line is the market price. Each dot is a time the robot bought for you." /></span>
                   <Sparkline data={data} marks={marks} />
                 </div>
                 <div className="delta">
-                  <span>Position P&amp;L · unrealized</span>
+                  <span>Position P&amp;L · unrealized <Tip text="Are you winning or losing right now, compared to what you paid. Green is winning." /></span>
                   {delta ? (
                     <strong className={delta.pnl >= 0n ? "pos" : "neg"}>
                       {delta.pnl >= 0n ? "+" : "−"}
