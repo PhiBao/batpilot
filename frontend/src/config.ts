@@ -10,11 +10,13 @@ export const VAULT_ABI = [
       { name: "feed", type: "address" }, { name: "amountPerFill", type: "uint256" },
       { name: "cadenceSec", type: "uint256" }, { name: "stopLossBps", type: "uint256" },
       { name: "takeProfitBps", type: "uint256" }, { name: "maxStaleSec", type: "uint256" },
-      { name: "bandBps", type: "uint256" }, { name: "usdgBalance", type: "uint256" },
+      { name: "bandBps", type: "uint256" }, { name: "slipBps", type: "uint256" },
+      { name: "usdgBalance", type: "uint256" },
       { name: "stockBalance", type: "uint256" }, { name: "entryAvg", type: "uint256" },
       { name: "lastFill", type: "uint256" }, { name: "uiSnapshot", type: "uint256" },
       { name: "yieldShares", type: "uint256" }, { name: "active", type: "bool" },
-      { name: "paused", type: "bool" },
+      { name: "paused", type: "bool" }, { name: "cooldownUntil", type: "uint256" },
+      { name: "cooldownSec", type: "uint256" },
     ],
   },
   {
@@ -24,7 +26,7 @@ export const VAULT_ABI = [
       { name: "amountPerFill", type: "uint256" }, { name: "cadenceSec", type: "uint256" },
       { name: "stopLossBps", type: "uint256" }, { name: "takeProfitBps", type: "uint256" },
       { name: "maxStaleSec", type: "uint256" }, { name: "bandBps", type: "uint256" },
-      { name: "slipBps", type: "uint256" },
+      { name: "slipBps", type: "uint256" }, { name: "cooldownSec", type: "uint256" },
     ],
     outputs: [{ type: "uint256" }],
   },
@@ -80,7 +82,7 @@ export const ERC20_ABI = [  { type: "function", name: "approve", stateMutability
   { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
 ] as const;
 
-export type Stock = { symbol: string; stock: Address; feed: Address; refPrice: string };
+export type Stock = { symbol: string; stock: Address; feed: Address };
 
 export type ChainCfg = {
   id: number;
@@ -126,11 +128,11 @@ export const CHAINS: Record<number, ChainCfg> = {
     "Robinhood Testnet",
     "https://rpc.testnet.chain.robinhood.com",
     "https://explorer.testnet.chain.robinhood.com",
-    "0x05295a3c41Ac537a5C1a5E9203eD7f98Be86A8bb",
-    "0x99733e6EeE1E96b0f9DADd38d3961049b00373c2",
+    "0x639794F956A4b2CC2C62a5DF9eE71B29a7C7a53E",
+    "0x8856475f0787E5A4B2d39b88379Cd79fDD40B887",
     [
-      { symbol: "NVDA", stock: "0x9d042fE47D8BaabC34bc224044698c04796D5b56", feed: "0x8B21368c3a1D3530DFd7eFAE66173Cb30F4fd42e", refPrice: "$180" },
-      { symbol: "TSLA", stock: "0x6E8330F88BbC94a7B652C47a4B770f96EE8E207C", feed: "0x081974a63EF78581f00fde9Ce48f673474eD157C", refPrice: "$250" },
+      { symbol: "NVDA", stock: "0xfB66148b3AF6CC7f1D25B63e49d4C8174145eFe7", feed: "0x1e034E0375de39260d0356B9F4686Ddca8557da1" },
+      { symbol: "TSLA", stock: "0x2693806835f399afBda9C6D27Fd3BAB8A2354d29", feed: "0x049A114756edF01064861F40c4B6979d5eccAdE8" },
     ],
     "faucet: faucet.testnet.chain.robinhood.com (ETH + test stocks)",
   ),
@@ -142,9 +144,9 @@ export const CHAINS: Record<number, ChainCfg> = {
     "0xbA2fDa0a4411d8C2548d7dA5A4B32EEc8cD66483",
     "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
     [
-      { symbol: "NVDA", stock: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", feed: "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15", refPrice: "~$180" },
-      { symbol: "TSLA", stock: "0x322F0929c4625eD5bAd873c95208D54E1c003b2d", feed: "0x4A1166a659A55625345e9515b32adECea5547C38", refPrice: "~$250" },
-      { symbol: "AAPL", stock: "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9", feed: "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0", refPrice: "~$230" },
+      { symbol: "NVDA", stock: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", feed: "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15" },
+      { symbol: "TSLA", stock: "0x322F0929c4625eD5bAd873c95208D54E1c003b2d", feed: "0x4A1166a659A55625345e9515b32adECea5547C38" },
+      { symbol: "AAPL", stock: "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9", feed: "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0" },
     ],
     "real funds — owner-funded alpha, unaudited",
   ),

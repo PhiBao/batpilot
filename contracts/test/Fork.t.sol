@@ -60,7 +60,7 @@ contract BatpilotForkTest is Test {
         uint256 fill = 50e6; // $50 in real 6-decimal USDG
         vm.startPrank(user);
         IERC20(USDG).approve(address(vault), type(uint256).max);
-        uint256 id = vault.createPlan(NVDA, NVDA_FEED, fill, 60, 800, 2000, 7 days, 0, 200);
+        uint256 id = vault.createPlan(NVDA, NVDA_FEED, fill, 60, 800, 2000, 7 days, 0, 200, 7200);
         vault.fundPlan(id, 1000e6);
         vm.stopPrank();
 
@@ -72,7 +72,7 @@ contract BatpilotForkTest is Test {
         (, int256 price,, uint256 updatedAt,) =
             IChainlinkFeed(NVDA_FEED).latestRoundData();
         if (executed) {
-            (,,,,,,,,,, uint256 usdgBal, uint256 stockBal, uint256 entryAvg,,,,,) =
+            (,,,,,,,,,, uint256 usdgBal, uint256 stockBal, uint256 entryAvg,,,,,,,) =
                 vault.plans(id);
             assertEq(usdgBal, 1000e6 - fill);
             assertGt(stockBal, 0);
@@ -86,7 +86,7 @@ contract BatpilotForkTest is Test {
     function test_StaleRefusalOnAgedFeed() public {        uint256 fill = 50e6;
         vm.startPrank(user);
         IERC20(USDG).approve(address(vault), type(uint256).max);
-        uint256 id = vault.createPlan(NVDA, NVDA_FEED, fill, 60, 800, 2000, 1 hours, 0, 200);
+        uint256 id = vault.createPlan(NVDA, NVDA_FEED, fill, 60, 800, 2000, 1 hours, 0, 200, 7200);
         vault.fundPlan(id, 1000e6);
         vm.stopPrank();
 

@@ -6,8 +6,8 @@ import { privateKeyToAccount } from "viem/accounts";
 // permissionless mock feeds — never mainnet / real Chainlink.
 const SYMBOLS = ["NVDA", "TSLA"];
 const FEEDS = {
-  NVDA: "0x8B21368c3a1D3530DFd7eFAE66173Cb30F4fd42e",
-  TSLA: "0x081974a63EF78581f00fde9Ce48f673474eD157C",
+  NVDA: "0x1e034E0375de39260d0356B9F4686Ddca8557da1",
+  TSLA: "0x049A114756edF01064861F40c4B6979d5eccAdE8",
 };
 const RPC = "https://rpc.testnet.chain.robinhood.com";
 const CHAIN = {

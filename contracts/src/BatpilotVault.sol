@@ -36,6 +36,8 @@ contract BatpilotVault is ReentrancyGuard {
         uint256 yieldShares; // shares in yield vault
         bool active;
         bool paused; // corporate-action pause
+        uint256 cooldownUntil; // no buys before this (set on protection sale)
+        uint256 cooldownSec; // pause length after each protection sale
     }
 
     IERC20 public immutable USDG;
@@ -84,12 +86,14 @@ contract BatpilotVault is ReentrancyGuard {
         uint256 takeProfitBps,
         uint256 maxStaleSec,
         uint256 bandBps,
-        uint256 slipBps
+        uint256 slipBps,
+        uint256 cooldownSec
     ) external returns (uint256 planId) {
         if (amountPerFill == 0) revert ZeroAmount();
         if (cadenceSec == 0) revert ZeroAmount();
         require(stockLossSane(stopLossBps) && takeProfitSane(takeProfitBps), "Batpilot: bad bps");
         require(slipBps <= 2000, "Batpilot: slip too wide");
+        require(cooldownSec <= 30 days, "Batpilot: cooldown too long");
 
         planId = planCount++;
         uint256 mult = 1e18;
@@ -115,7 +119,9 @@ contract BatpilotVault is ReentrancyGuard {
             uiSnapshot: mult,
             yieldShares: 0,
             active: true,
-            paused: false
+            paused: false,
+            cooldownUntil: 0,
+            cooldownSec: cooldownSec
         });
         emit PlanCreated(planId, msg.sender, stock, amountPerFill);
     }
@@ -135,6 +141,15 @@ contract BatpilotVault is ReentrancyGuard {
     function executeDCA(uint256 planId) external nonReentrant returns (bool executed, uint8 reason) {
         Plan storage p = plans[planId];
         if (!p.active) revert Inactive();
+        // Cooling down after a protection sale: never buy straight back
+        // into the crash that just stopped us out.
+        if (block.timestamp < p.cooldownUntil) {
+            (, int256 cdAnswer,, uint256 cdTs,) =
+                IChainlinkFeed(p.feed).latestRoundData();
+            uint256 cdPrice = cdAnswer > 0 ? uint256(cdAnswer) : 0;
+            emit GuardRejected(planId, SessionGuard(address(GUARD)).REASON_COOLDOWN(), cdPrice, cdTs);
+            return (false, 5);
+        }
         if (block.timestamp < p.lastFill + p.cadenceSec) return (false, 0); // not due yet
         if (p.usdgBalance < p.amountPerFill) revert InsufficientBalance();
 
@@ -213,6 +228,8 @@ contract BatpilotVault is ReentrancyGuard {
         p.usdgBalance += usdgOut;
         // Reset entry so a later re-entry starts clean; keep plan active for DCA to resume.
         p.entryAvg = 0;
+        // Cool down: don't buy straight back into the move that stopped us out.
+        if (p.cooldownSec > 0) p.cooldownUntil = block.timestamp + p.cooldownSec;
 
         uint8 kind = stopHit ? 1 : 2;
         emit Protected(planId, kind, stockIn, usdgOut, price);

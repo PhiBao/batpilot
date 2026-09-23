@@ -51,7 +51,7 @@ contract BatpilotTest is Test {
     function makePlan() internal returns (uint256 planId) {
         vm.prank(user);
         planId = vault.createPlan(
-            address(nvda), address(feed), FILL, CADENCE, 800, 2000, 3600, 500, 200
+            address(nvda), address(feed), FILL, CADENCE, 800, 2000, 3600, 500, 200, 7200
         );
         vm.prank(user);
         vault.fundPlan(planId, 1000e18);
@@ -59,7 +59,7 @@ contract BatpilotTest is Test {
 
     function test_CreateAndFund() public {
         uint256 id = makePlan();
-        (address owner,,,,,,,,,,,,,,,, bool active, bool paused) = vault.plans(id);
+        (address owner,,,,,,,,,,,,,,,, bool active, bool paused,,) = vault.plans(id);
         assertEq(owner, user);
         assertTrue(active);
         assertFalse(paused);
@@ -73,7 +73,7 @@ contract BatpilotTest is Test {
         assertTrue(executed);
         assertEq(reason, 0);
 
-        (,,,,,,,,,, uint256 usdgBal, uint256 stockBal, uint256 entryAvg,,,,,) = vault.plans(id);
+        (,,,,,,,,,, uint256 usdgBal, uint256 stockBal, uint256 entryAvg,,,,,,,) = vault.plans(id);
         assertEq(usdgBal, 1000e18 - FILL);
         assertEq(stockBal, (FILL * 1e8) / uint256(P0));
         assertEq(entryAvg, uint256(P0));
@@ -121,7 +121,7 @@ contract BatpilotTest is Test {
         uint8 code = vault.executeProtection(id);
         assertEq(code, 1);
 
-        (,,,,,,,,,, uint256 usdgBal, uint256 stockBal,,,,,,) = vault.plans(id);
+        (,,,,,,,,,, uint256 usdgBal, uint256 stockBal,,,,,,,,) = vault.plans(id);
         assertEq(stockBal, 0);
         // $50 of NVDA bought @180, sold @162 = $45 back.
         assertApproxEqAbs(usdgBal, 1000e18 - FILL + 45e18, 1e12);
@@ -149,7 +149,7 @@ contract BatpilotTest is Test {
         vm.prank(keeper);
         uint8 code = vault.executeProtection(id);
         assertEq(code, 3);
-        (,,,,,,,,,,, uint256 stockBal,,,,,,) = vault.plans(id);
+        (,,,,,,,,,,, uint256 stockBal,,,,,,,,) = vault.plans(id);
         assertGt(stockBal, 0); // position untouched
     }
 
@@ -161,7 +161,7 @@ contract BatpilotTest is Test {
         (bool executed, uint8 reason) = vault.executeDCA(id);
         assertFalse(executed);
         assertEq(reason, guard.REASON_PAUSED());
-        (,,,,,,,,,,,,,,,, bool active, bool paused) = vault.plans(id);
+        (,,,,,,,,,,,,,,,, bool active, bool paused,,) = vault.plans(id);
         assertTrue(active);
         assertTrue(paused);
     }
@@ -177,7 +177,7 @@ contract BatpilotTest is Test {
         (,,, uint256 yieldValue) = vault.planEquity(id);
         assertApproxEqAbs(yieldValue, 535e18, 1e18);
 
-        (,,,,,,,,,,,,,,, uint256 shares,,) = vault.plans(id);
+        (,,,,,,,,,,,,,,, uint256 shares,,,,) = vault.plans(id);
         vm.prank(user);
         vault.withdrawFromYield(id, shares);
         (uint256 usdgAfter,,,) = vault.planEquity(id);
@@ -194,7 +194,7 @@ contract BatpilotTest is Test {
         vault.cancelPlan(id);
         // $950 untouched + ~$50 stock value back.
         assertApproxEqAbs(usdg.balanceOf(user), before + 1000e18, 1e12);
-        (,,,,,,,,,,,,,,,, bool active,) = vault.plans(id);
+        (,,,,,,,,,,,,,,,, bool active,,,) = vault.plans(id);
         assertFalse(active);
     }
 
@@ -210,10 +210,32 @@ contract BatpilotTest is Test {
         assertEq(y, 0);
     }
 
+    function test_CooldownAfterProtection() public {
+        uint256 id = makePlan(); // cooldown 7200s
+        skip(CADENCE + 1);
+        vm.prank(keeper);
+        vault.executeDCA(id); // long @ $180
+        feed.setPrice(162e8); // -10% crash
+        vm.prank(keeper);
+        assertEq(vault.executeProtection(id), 1); // stopped
+        // Must NOT buy straight back into the crash.
+        skip(CADENCE + 1);
+        vm.prank(keeper);
+        (bool executed, uint8 reason) = vault.executeDCA(id);
+        assertFalse(executed);
+        assertEq(reason, guard.REASON_COOLDOWN());
+        // After cooldown elapses, DCA resumes.
+        skip(7200);
+        feed.setPrice(162e8); // fresh print at same level
+        vm.prank(keeper);
+        (executed,) = vault.executeDCA(id);
+        assertTrue(executed);
+    }
+
     function test_SlippageCapRejected() public {
         vm.prank(user);
         vm.expectRevert("Batpilot: slip too wide");
-        vault.createPlan(address(nvda), address(feed), FILL, CADENCE, 800, 2000, 3600, 500, 2001);
+        vault.createPlan(address(nvda), address(feed), FILL, CADENCE, 800, 2000, 3600, 500, 2001, 7200);
     }
 
     function test_MinOutViews() public {
@@ -237,14 +259,14 @@ contract BatpilotTest is Test {
 
         vm.startPrank(user);
         u6.approve(address(v6), type(uint256).max);
-        uint256 id = v6.createPlan(address(nvda), address(feed), 50e6, CADENCE, 800, 2000, 3600, 0, 200);
+        uint256 id = v6.createPlan(address(nvda), address(feed), 50e6, CADENCE, 800, 2000, 3600, 0, 200, 7200);
         v6.fundPlan(id, 1000e6);
         vm.stopPrank();
 
         skip(CADENCE + 1);
         (bool executed,) = v6.executeDCA(id);
         assertTrue(executed);
-        (,,,,,,,,,, uint256 usdgBal, uint256 stockBal,,,,,,) = v6.plans(id);
+        (,,,,,,,,,, uint256 usdgBal, uint256 stockBal,,,,,,,,) = v6.plans(id);
         assertEq(usdgBal, 950e6);
         assertGt(stockBal, 0);
         // minOut view matches the 6d scaling the vault used.

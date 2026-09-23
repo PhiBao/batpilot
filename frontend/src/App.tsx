@@ -78,6 +78,8 @@ type PlanRow = {
   yieldShares: bigint;
   active: boolean;
   paused: boolean;
+  cooldownUntil: bigint;
+  cooldownSec: bigint;
   equity: readonly [bigint, bigint, bigint, bigint];
 };
 
@@ -135,9 +137,8 @@ export default function App() {
   const [sl, setSl] = useState("8");
   const [tp, setTp] = useState("20");
   const [slip, setSlip] = useState("2");
+  const [coolMin, setCoolMin] = useState("120");
   const [fund, setFund] = useState("1000");
-  const [newPrice, setNewPrice] = useState("");
-  const [priceTouched, setPriceTouched] = useState(false);
   const PAGE = 8;
   const [visible, setVisible] = useState(PAGE);
   const sentinel = useRef<HTMLDivElement | null>(null);
@@ -161,18 +162,8 @@ export default function App() {
   useEffect(() => setStockIdx(0), [chainId]);
   useEffect(() => setVisible(PAGE), [chainId]);
 
-  // Default the custom-price field to the newest onchain price whenever the
-  // stock or chain changes, or a first quote arrives — never while typing.
+  // Newest onchain price for the selected stock — the same number the guard enforces.
   const livePrice = live[CH.stocks[stockIdx]?.feed.toLowerCase() ?? ""];
-  useEffect(() => {
-    setPriceTouched(false);
-    setNewPrice("");
-  }, [stockIdx, chainId]);
-  useEffect(() => {
-    if (!priceTouched && livePrice && livePrice > 0n) {
-      setNewPrice((Number(livePrice) / 1e8).toFixed(2));
-    }
-  }, [livePrice, priceTouched]);
 
   const refreshAll = useCallback(async () => {
     try {
@@ -199,7 +190,8 @@ export default function App() {
           id, owner: p[0], stock: p[1], feed: p[2], amountPerFill: p[3], cadenceSec: p[4],
           stopLossBps: p[5], takeProfitBps: p[6], usdgBalance: p[10],
           stockBalance: p[11], entryAvg: p[12], lastFill: p[13],
-          yieldShares: p[15], active: p[16], paused: p[17], equity,
+          yieldShares: p[15], active: p[16], paused: p[17],
+          cooldownUntil: p[18], cooldownSec: p[19], equity,
         });
       }
       setPlans(rows);
@@ -328,6 +320,7 @@ export default function App() {
           BigInt(Math.round(Number(tp) * 100)),
           3600n, 500n,
           BigInt(Math.round(Number(slip) * 100)),
+          BigInt(Math.max(0, Number(coolMin))) * 60n,
         ],
         chainId: CH.chain.id,
       });
@@ -422,27 +415,6 @@ export default function App() {
       setRefresh((r) => r + 1);
     } catch (e: any) {
       setStatus("cancel failed: " + (e?.shortMessage ?? e?.message ?? e));
-    }
-  }
-
-  // Demo market control (mock feeds only — real Chainlink feeds reject this).
-  async function setFeedPrice() {
-    if (!address || !(await needWalletChain())) return;
-    const v = Number(newPrice);
-    if (!v || v <= 0) {
-      setStatus("enter a price like 162 to simulate a crash.");
-      return;
-    }
-    try {
-      setStatus(`setting demo ${CH.stocks[stockIdx].symbol} price to $${v}…`);
-      await writeContractAsync({
-        address: CH.stocks[stockIdx].feed, abi: FEED_ABI, functionName: "setPrice",
-        args: [BigInt(Math.round(v * 1e8))], chainId: CH.chain.id,
-      });
-      setStatus(`demo price set to $${v} — watch the guard and protection react.`);
-      setRefresh((r) => r + 1);
-    } catch {
-      setStatus("price control unavailable here — this feed is a real Chainlink feed.");
     }
   }
 
@@ -553,6 +525,7 @@ export default function App() {
           <label>Stop-loss · %<input value={sl} onChange={(e) => setSl(e.target.value)} /></label>
           <label>Take-profit · %<input value={tp} onChange={(e) => setTp(e.target.value)} /></label>
           <label>Slippage · %<input value={slip} onChange={(e) => setSlip(e.target.value)} /></label>
+          <label>Cooldown · min<input value={coolMin} onChange={(e) => setCoolMin(e.target.value)} /></label>
           <label>Fund with · USDG<input value={fund} onChange={(e) => setFund(e.target.value)} /></label>
           </div>
           <div className="btnrow">
@@ -568,24 +541,9 @@ export default function App() {
               {CH.stocks[stockIdx].symbol} live{" "}
               <strong>{livePrice && livePrice > 0n ? fmtPrice(livePrice) : "…"}</strong>
               {chainId === 4663
-                ? " · real Chainlink feed — moves with the market"
+                ? " · real Chainlink feed"
                 : " · demo feed synced to the live market"}
             </span>
-            {isConnected && chainId !== 4663 && (
-              <>
-                <input
-                  value={newPrice}
-                  onChange={(e) => { setPriceTouched(true); setNewPrice(e.target.value); }}
-                  placeholder="custom price"
-                />
-                <button className="btn" onClick={setFeedPrice}>
-                  Set {CH.stocks[stockIdx].symbol} price
-                </button>
-              </>
-            )}
-            {isConnected && chainId === 4663 && (
-              <span className="dim small">Real feeds can't be moved — switch to testnet to rehearse crashes.</span>
-            )}
           </div>
         </div>
       </section>
@@ -610,6 +568,13 @@ export default function App() {
           const total = p.equity[0] + p.equity[2] + p.equity[3];
           const fillsLeft = p.amountPerFill > 0n ? p.usdgBalance / p.amountPerFill : 0n;
           const lowFunds = p.active && fillsLeft < 3n;
+          const coolingMs = Number(p.cooldownUntil) * 1000 - Date.now();
+          const cooling = p.active && coolingMs > 0;
+          const sym = STOCK_NAME[p.stock.toLowerCase()] ?? "STOCK";
+          const entryTxt = p.entryAvg > 0n ? fmtPrice(p.entryAvg) : "first fill price";
+          const coolTxt = p.cooldownSec >= 3600n
+            ? `${Number(p.cooldownSec / 3600n)}h`
+            : `${Number(p.cooldownSec / 60n)}min`;
           const delta = positionPnl(p, p.equity[2], USD_D);
           const rawHist = hist[p.feed?.toLowerCase?.() ?? ""] ?? [];
           const marks = fillsFor(p.id);
@@ -636,6 +601,25 @@ export default function App() {
                   <strong>Low funds — ≈{String(fillsLeft)} fill{fillsLeft === 1n ? "" : "s"} left.</strong>
                   <span>Top up so the trail never goes quiet mid-judging.</span>
                   <button className="btn primary" onClick={() => topUp(p.id, p.amountPerFill)}>Top up {fmtUSD(p.amountPerFill * 10n, USD_D)}</button>
+                </div>
+              )}
+              <p className="planstory">
+                Buys <strong>{fmtUSD(p.amountPerFill, USD_D)} {sym}</strong> every{" "}
+                <strong>{String(p.cadenceSec / 60n)} min</strong>. Sells everything if {sym}{" "}
+                falls <strong>{Number(p.stopLossBps) / 100}%</strong> below your{" "}
+                <strong>{entryTxt}</strong> average
+                {p.takeProfitBps > 0n && (
+                  <> (or rises <strong>{Number(p.takeProfitBps) / 100}%</strong> for profit)</>
+                )}
+                {p.cooldownSec > 0n && (
+                  <> — then pauses <strong>{coolTxt}</strong> before buying again</>
+                )}
+                .
+              </p>
+              {cooling && (
+                <div className="warnbanner cool">
+                  <strong>Cooling down — buys resume {new Date(Number(p.cooldownUntil) * 1000).toLocaleTimeString()}.</strong>
+                  <span>A protection sale just fired; the plan sits out the aftershock instead of buying straight back.</span>
                 </div>
               )}
               <div className="statgrid">

@@ -15,6 +15,7 @@ contract SessionGuard is ISessionGuard {
     uint8 public constant REASON_PAUSED = 2;
     uint8 public constant REASON_BAND_BREACH = 3;
     uint8 public constant REASON_INVALID_PRICE = 4;
+    uint8 public constant REASON_COOLDOWN = 5;
 
     /// @notice Evaluate a single fill.
     /// @param price Feed answer, already validated > 0 by caller convention.

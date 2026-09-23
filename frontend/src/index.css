@@ -435,6 +435,20 @@ button {
 .warnbanner span { color: var(--muted); }
 .warnbanner .btn { margin-left: auto; padding: 8px 20px; }
 
+.warnbanner.cool {
+  background: var(--card);
+  border-style: dashed;
+}
+
+.planstory {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 0 0 20px;
+  max-width: 70ch;
+}
+
+.planstory strong { color: var(--ink); }
+
 .statgrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
