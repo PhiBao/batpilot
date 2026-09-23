@@ -309,6 +309,23 @@ export default function App() {
 
   async function setupPlan() {
     if (!address || !(await needWalletChain())) return;
+    // Friendly validation before any signature — edge cases in plain words.
+    const amtN = Number(amount), cadN = Number(cadenceMin);
+    const slN = Number(sl), tpN = Number(tp), slipN = Number(slip);
+    const fundN = Number(fund), coolN = Number(coolMin);
+    const bad =
+      !(amtN > 0) ? "Buy amount must be more than 0 — how much should the robot spend each time?"
+      : !(cadN >= 1) ? "Cadence must be at least 1 minute."
+      : !(slN >= 0 && slN <= 100) ? "Stop-loss must be between 0 and 100%."
+      : !(tpN >= 0 && tpN <= 1000) ? "Take-profit must be between 0 and 1000%."
+      : !(slipN >= 0 && slipN <= 20) ? "Slippage must be between 0 and 20% — 2 is safe."
+      : !(coolN >= 0 && coolN <= 43200) ? "Cooldown must be between 0 and 43200 minutes (30 days)."
+      : !(fundN > 0) ? "Funding must be more than 0 — the piggy bank can't start empty."
+      : null;
+    if (bad) {
+      setStatus(bad);
+      return;
+    }
     try {
       const s = CH.stocks[stockIdx];
       const amt = parseUnits(amount || "0", USD_D);
