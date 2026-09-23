@@ -22,8 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: mkdir -p $RUNNER_TEMP/sync && cd $RUNNER_TEMP/sync && npm init -y >/dev/null && npm install viem
-      - run: NODE_PATH=$RUNNER_TEMP/sync/node_modules node scripts/sync-prices.mjs
+      - run: mkdir -p $RUNNER_TEMP/sync && cd $RUNNER_TEMP/sync && npm init -y >/dev/null && npm install viem && cp $GITHUB_WORKSPACE/keeper-worker/scripts/sync-prices.mjs .
+      - run: cd $RUNNER_TEMP/sync && node sync-prices.mjs
         env:
           CMC_API_KEY: ${{ secrets.CMC_API_KEY }}
           TESTNET_KEY: ${{ secrets.TESTNET_KEY }}
