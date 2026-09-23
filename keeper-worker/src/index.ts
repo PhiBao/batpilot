@@ -67,6 +67,19 @@ type Env = {
   WATCH: string; // "label:chainId:vault:rpc,label:..."
 };
 
+async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  let last: any;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      last = e;
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
 function chainDef(chainId: number, rpc: string): Chain {
   return {
     id: chainId,
@@ -127,23 +140,27 @@ async function tickOne(
       );
     } else {
       try {
-        const res = (await pub.simulateContract({
-          address: vault,
-          abi: VAULT_ABI,
-          functionName: "executeDCA",
-          args: [id],
-          account: account.address,
-        })) as any;
-        const [executed, reason] = res.result as [boolean, number];
-        if (executed) {
-          const hash = await wallet.writeContract({
+        const res = (await withRetry(() =>
+          pub.simulateContract({
             address: vault,
             abi: VAULT_ABI,
             functionName: "executeDCA",
             args: [id],
             account: account.address,
-            chain,
-          });
+          })
+        )) as any;
+        const [executed, reason] = res.result as [boolean, number];
+        if (executed) {
+          const hash = await withRetry(() =>
+            wallet.writeContract({
+              address: vault,
+              abi: VAULT_ABI,
+              functionName: "executeDCA",
+              args: [id],
+              account: account.address,
+              chain,
+            })
+          );
           console.log(`[${label} plan ${id}] DCA fill sent: ${hash}`);
         } else if (reason !== 0) {
           console.log(`[${label} plan ${id}] guard refused fill: ${REASONS[reason] ?? reason} (onchain event emitted)`);
@@ -157,23 +174,27 @@ async function tickOne(
     // Only meaningful with a position; silent when flat or calm.
     if ((p[11] as bigint) > 0n) {
       try {
-        const res = (await pub.simulateContract({
-          address: vault,
-          abi: VAULT_ABI,
-          functionName: "executeProtection",
-          args: [id],
-          account: account.address,
-        })) as any;
-        const code = res.result as number;
-        if (code === 1 || code === 2) {
-          const hash = await wallet.writeContract({
+        const res = (await withRetry(() =>
+          pub.simulateContract({
             address: vault,
             abi: VAULT_ABI,
             functionName: "executeProtection",
             args: [id],
             account: account.address,
-            chain,
-          });
+          })
+        )) as any;
+        const code = res.result as number;
+        if (code === 1 || code === 2) {
+          const hash = await withRetry(() =>
+            wallet.writeContract({
+              address: vault,
+              abi: VAULT_ABI,
+              functionName: "executeProtection",
+              args: [id],
+              account: account.address,
+              chain,
+            })
+          );
           console.log(`[${label} plan ${id}] PROTECTION fired (${code === 1 ? "STOP" : "TAKE"}): ${hash}`);
         }
       } catch (e: any) {

@@ -139,7 +139,7 @@ export const CHAINS: Record<number, ChainCfg> = {
     "Robinhood Mainnet",
     "https://rpc.mainnet.chain.robinhood.com",
     "https://robin.etherscan.io",
-    "0xde7b9F01C566A4f8AdcF57CbFC738E5EA2b7Fa0a",
+    "0xbA2fDa0a4411d8C2548d7dA5A4B32EEc8cD66483",
     "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
     [
       { symbol: "NVDA", stock: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", feed: "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15", refPrice: "~$180" },

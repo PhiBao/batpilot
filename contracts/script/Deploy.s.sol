@@ -30,7 +30,11 @@ contract Deploy is Script {
 
         vm.startBroadcast(key);
 
-        SessionGuard guard = new SessionGuard();
+        address guardAddr = vm.envOr("GUARD", address(0));
+        if (guardAddr == address(0)) {
+            guardAddr = address(new SessionGuard());
+        }
+        SessionGuard guard = SessionGuard(guardAddr);
 
         if (mocks) {
             MockUSDG mUsdg = new MockUSDG();
@@ -66,17 +70,24 @@ contract Deploy is Script {
 
         if (!mocks) {
             // Production wiring: real AMM + real Earn behind the same interfaces.
-            address swapRouter02 = vm.envAddress("SWAP_ROUTER02");
-            address earnVault = vm.envAddress("EARN_VAULT");
-            UniswapV3Adapter live = new UniswapV3Adapter(swapRouter02, usdg);
-            live.setFeed(MAINNET_NVDA, MAINNET_NVDA_FEED);
-            live.setFeed(MAINNET_TSLA, MAINNET_TSLA_FEED);
-            live.setFeed(MAINNET_AAPL, MAINNET_AAPL_FEED);
-            MorphoEarnAdapter earnAdapter = new MorphoEarnAdapter(earnVault);
-            router = address(live);
-            yieldVault = address(earnAdapter);
-            console.log("U3Adapter:  ", router);
-            console.log("EarnAdapter:", yieldVault);
+            // Reuse existing adapters when ROUTER/YIELD env point at them.
+            router = vm.envOr("ROUTER", address(0));
+            yieldVault = vm.envOr("YIELD", address(0));
+            if (router == address(0)) {
+                address swapRouter02 = vm.envAddress("SWAP_ROUTER02");
+                UniswapV3Adapter live = new UniswapV3Adapter(swapRouter02, usdg);
+                live.setFeed(MAINNET_NVDA, MAINNET_NVDA_FEED);
+                live.setFeed(MAINNET_TSLA, MAINNET_TSLA_FEED);
+                live.setFeed(MAINNET_AAPL, MAINNET_AAPL_FEED);
+                router = address(live);
+                console.log("U3Adapter:  ", router);
+            }
+            if (yieldVault == address(0)) {
+                address earnVault = vm.envAddress("EARN_VAULT");
+                MorphoEarnAdapter earnAdapter = new MorphoEarnAdapter(earnVault);
+                yieldVault = address(earnAdapter);
+                console.log("EarnAdapter:", yieldVault);
+            }
         }
 
         require(

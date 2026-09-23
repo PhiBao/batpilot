@@ -132,7 +132,7 @@ protection, earn) → verifiable trail with tx links → one-click manual execut
 
 | Contract | Address | Verification |
 |---|---|---|
-| BatpilotVault | `0xde7b9F01C566A4f8AdcF57CbFC738E5EA2b7Fa0a` | Sourcify exact-match + Etherscan V2 |
+| BatpilotVault (V2) | `0xbA2fDa0a4411d8C2548d7dA5A4B32EEc8cD66483` | Sourcify (per-plan slippage, 6-decimal USDG) |
 | SessionGuard | `0x6792E51FBD24f9315282BD5b6c5E713dCc779C69` | Sourcify |
 | UniswapV3Adapter | `0xc6168fa5153E7AF6aFf0013D99A2B8D9670a1454` | Sourcify |
 | MorphoEarnAdapter | `0x457ae4d9e8CC1bC6bf3babA9133D1fCe283a9ABE` | Sourcify |
@@ -171,7 +171,10 @@ no "trust us." Batpilot starts with the narrowest valuable loop (scheduled buys
 - [x] Testnet + mainnet deployments, verified
 - [ ] First funded mainnet plan + public track record
 - [ ] `oraclePaused()` + staged-multiplier reads (Chainlink's recommended hardening)
-- [ ] Uniswap v4 TWAMM execution for large scheduled fills
+- [ ] Uniswap v4 hook-venue routing (probed 9 hookless v4 USDG/stock combos on
+  mainnet — none exist; v4 volume sits in proprietary propAMM hooks, so this
+  means per-venue RFQ integrations, not a generic adapter; v3 remains the
+  permissionless execution venue with verified depth)
 - [ ] Trailing stops, autopilot baskets, SGD quote rail
 - [ ] Ownership to multisig + audit before external funds scale
 - [ ] Founder House: family-office rails for onchain equities

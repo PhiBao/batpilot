@@ -6,6 +6,8 @@ compatibility_flags = ["nodejs_compat"]
 # One keeper for all chains, every minute. Secrets (never commit):
 #   wrangler secret put PRIVATE_KEY
 #   wrangler secret put WATCH   # "testnet:46630:<vault>:<rpc>,mainnet:4663:<vault>:<rpc>"
+# RPC matrix (verified live): testnet via public RPC, mainnet via QuickNode.
+# Cloudflare-egress + QN-testnet and public-mainnet both flaked — don't "simplify".
 [triggers]
 crons = ["*/1 * * * *"]
 

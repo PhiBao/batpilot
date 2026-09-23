@@ -49,7 +49,7 @@ mainnet-fork proofs.
 - Repo: https://github.com/PhiBao/batpilot
 - App (chain switcher): https://batpilot.vercel.app
 - Demo video: <YOUTUBE_URL> (4 min: setup → live fill → refused fill → stop-loss → Earn sweep → fork replay)
-- Testnet vault: https://explorer.testnet.chain.robinhood.com/address/0x9e75555936a2097Ce281De7EFb5CdCC281277BF5
+- Testnet vault (V2): https://explorer.testnet.chain.robinhood.com/address/0x05295a3c41Ac537a5C1a5E9203ed7f98be86a8bb
 - Mainnet vault: https://robin.etherscan.io/address/0xde7b9F01C566A4f8AdcF57CbFC738E5EA2b7Fa0a
 - First keeper fill: https://explorer.testnet.chain.robinhood.com/tx/0x6756fd83818f8885e424c7e3f6ccbe3076000ddf9b8b4ee4d82c5d5eec4c70e2
 

@@ -33,6 +33,7 @@ const VAULT_ABI = [
       { name: "takeProfitBps", type: "uint256" },
       { name: "maxStaleSec", type: "uint256" },
       { name: "bandBps", type: "uint256" },
+      { name: "slipBps", type: "uint256" },
       { name: "usdgBalance", type: "uint256" },
       { name: "stockBalance", type: "uint256" },
       { name: "entryAvg", type: "uint256" },
