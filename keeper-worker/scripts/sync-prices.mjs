@@ -1,8 +1,10 @@
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-// Testnet demo feeds track live CMC quotes (every 5 min via cron).
-// Only touches permissionless mock feeds — never mainnet/real Chainlink.
+// Testnet demo feeds track the live equity market (every 5 min via cron).
+// Free Yahoo Finance quotes — no key, no credits to burn. Only touches
+// permissionless mock feeds — never mainnet / real Chainlink.
+const SYMBOLS = ["NVDA", "TSLA"];
 const FEEDS = {
   NVDA: "0x8B21368c3a1D3530DFd7eFAE66173Cb30F4fd42e",
   TSLA: "0x081974a63EF78581f00fde9Ce48f673474eD157C",
@@ -19,22 +21,28 @@ const SETPRICE_ABI = [
     inputs: [{ name: "p", type: "int256" }], outputs: [] },
 ];
 
-const key = process.env.CMC_API_KEY;
 const pk = process.env.TESTNET_KEY;
-if (!key || !pk) throw new Error("CMC_API_KEY / TESTNET_KEY required");
+if (!pk) throw new Error("TESTNET_KEY required");
 
-const res = await fetch(
-  `https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=NVDA,TSLA&convert=USD&CMC_PRO_API_KEY=${key}`
-);
-if (!res.ok) throw new Error(`CMC http ${res.status}`);
-const data = await res.json();
+const quotes = {};
+// v8 chart is per-symbol: one light request each.
+for (const symbol of SYMBOLS) {
+  const r = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
+    { headers: { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" } }
+  );
+  if (!r.ok) continue;
+  const d = await r.json();
+  const m = d?.chart?.result?.[0]?.meta;
+  if (m && Number.isFinite(m.regularMarketPrice)) quotes[symbol] = m.regularMarketPrice;
+}
 
 const account = privateKeyToAccount(pk);
 const wallet = createWalletClient({ account, chain: CHAIN, transport: http(RPC) });
 const pub = createPublicClient({ chain: CHAIN, transport: http(RPC) });
 
 for (const symbol of Object.keys(FEEDS)) {
-  const price = Number(data?.data?.[symbol]?.quote?.USD?.price);
+  const price = Number(quotes[symbol]);
   if (!Number.isFinite(price) || price <= 1 || price > 1_000_000) {
     console.error(`bad quote for ${symbol}`);
     continue;

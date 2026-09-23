@@ -125,6 +125,39 @@ body {
   color: var(--muted);
 }
 
+.howstrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0;
+  margin-top: 34px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card);
+}
+
+.howstrip > div {
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.howstrip > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.howstrip strong {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.howstrip span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .chainnote code {
   font-family: var(--mono);
   font-size: 12px;

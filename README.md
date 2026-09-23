@@ -97,9 +97,9 @@ Permissionless by design: it can only trigger what the contracts already allow.
 Runs as a Cloudflare Workers cron (1 app, all chains via `WATCH` env, secrets
 via `wrangler secret`).
 
-**Demo market is live.** Testnet mock feeds track real CMC quotes for the
-Robinhood tokenized stocks via a GitHub Actions cron (`.github/workflows/`),
-so the demo moves with the market. Mainnet needs nothing — real Chainlink.
+**Demo market is live.** Testnet mock feeds track free Yahoo Finance equity
+quotes via a GitHub Actions cron (`.github/workflows/`, no key, no credits).
+Mainnet needs nothing — real Chainlink.
 
 **Frontend** (`frontend/`): 60-second guided setup → plan cards (equity, entry,
 protection, earn) → verifiable trail with tx links → one-click manual execution.

@@ -1,9 +1,8 @@
 name: sync-demo-prices
 
-# Pushes live CMC quotes into the testnet mock feeds every 5 minutes so the
-# demo market moves with reality. Secrets (repo Settings → Secrets → Actions):
-#   CMC_API_KEY   — CoinMarketCap Pro key (stocks via tokenized-stock listings)
-#   TESTNET_KEY   — keeper key (only ever touches permissionless mock setPrice)
+# Pushes free Yahoo Finance quotes into the testnet mock feeds every 5 minutes
+# so the demo market moves with reality. Secrets (repo Settings → Secrets):
+#   TESTNET_KEY — keeper key (only ever touches permissionless mock setPrice)
 
 on:
   schedule:
@@ -25,5 +24,4 @@ jobs:
       - run: mkdir -p $RUNNER_TEMP/sync && cd $RUNNER_TEMP/sync && npm init -y >/dev/null && npm install viem && cp $GITHUB_WORKSPACE/keeper-worker/scripts/sync-prices.mjs .
       - run: cd $RUNNER_TEMP/sync && node sync-prices.mjs
         env:
-          CMC_API_KEY: ${{ secrets.CMC_API_KEY }}
           TESTNET_KEY: ${{ secrets.TESTNET_KEY }}

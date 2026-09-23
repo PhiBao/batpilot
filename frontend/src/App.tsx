@@ -521,13 +521,23 @@ export default function App() {
         <p className="chainnote">{CH.faucetNote} · vault <code>{CH.vault.slice(0, 10)}…</code></p>
       </header>
 
+      <div className="howstrip">
+        <div><strong>01 · Fund</strong><span>Lock USDG in your plan. Only your wallet can move it.</span></div>
+        <div><strong>02 · Autopilot buys</strong><span>Keeper fills on schedule; the guard refuses stale or gappy prices — refusals land onchain.</span></div>
+        <div><strong>03 · Protection never sleeps</strong><span>Stop-loss / take-profit sell to USDG the moment your levels break, 24/7.</span></div>
+      </div>
+
       {status && <div className="status">{status}</div>}
 
       <section>
         <div className="sec-head">
           <span className="sec-num">01</span>
           <h2>New autopilot plan</h2>
-          <span className="dim">60 seconds, set and sleep</span>
+          <span className="dim">
+            {chainId === 4663
+              ? "real money · real Chainlink prices"
+              : "play money · move the market below to watch your plan react"}
+          </span>
         </div>
         <div className="panel">
           <div className="fields">
