@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="Inter, system-ui, sans-serif">
+  <rect width="1200" height="700" fill="#FAF8EF"/>
+  <text x="48" y="64" font-size="30" font-weight="800" letter-spacing="4" fill="#17150C">BATPILOT · HOW IT WORKS</text>
+
+  <!-- User -->
+  <g>
+    <rect x="48" y="110" width="220" height="150" rx="14" fill="#FFFDF6" stroke="#17150C" stroke-width="2.5"/>
+    <text x="70" y="150" font-size="17" font-weight="800" fill="#17150C">USER</text>
+    <text x="70" y="178" font-size="14" fill="#6F6A54">funds plan once</text>
+    <text x="70" y="200" font-size="14" fill="#6F6A54">$50 · NVDA · 15 min</text>
+    <text x="70" y="222" font-size="14" fill="#6F6A54">−8% / +20% · 2h cool</text>
+  </g>
+
+  <!-- Keeper -->
+  <g>
+    <rect x="48" y="300" width="220" height="130" rx="14" fill="#FFFDF6" stroke="#17150C" stroke-width="2.5"/>
+    <text x="70" y="340" font-size="17" font-weight="800" fill="#17150C">KEEPER</text>
+    <text x="70" y="368" font-size="14" fill="#6F6A54">untrusted · anyone</text>
+    <text x="70" y="390" font-size="14" fill="#6F6A54">Cloudflare cron</text>
+  </g>
+
+  <!-- Vault -->
+  <g>
+    <rect x="330" y="110" width="300" height="320" rx="14" fill="#17150C"/>
+    <text x="355" y="152" font-size="17" font-weight="800" fill="#E3E616">BATPILOT VAULT</text>
+    <text x="355" y="182" font-size="13.5" fill="#FAF8EF">· plan custody (only owner exits)</text>
+    <text x="355" y="206" font-size="13.5" fill="#FAF8EF">· scheduled DCA fills</text>
+    <text x="355" y="230" font-size="13.5" fill="#FAF8EF">· stop-loss / take-profit sales</text>
+    <text x="355" y="254" font-size="13.5" fill="#FAF8EF">· cooldown after protection</text>
+    <text x="355" y="278" font-size="13.5" fill="#FAF8EF">· idle USDG → Earn sweep</text>
+    <rect x="355" y="300" width="250" height="64" rx="10" fill="#E3E616"/>
+    <text x="370" y="326" font-size="13" font-weight="800" fill="#17150C">SESSION GUARD + VOL ENGINE</text>
+    <text x="370" y="348" font-size="13" fill="#17150C">freshness · vol bands · Stylus</text>
+  </g>
+
+  <!-- Arrows user/keeper -> vault -->
+  <g stroke="#17150C" stroke-width="2.5" fill="none">
+    <line x1="268" y1="170" x2="330" y2="170"/>
+    <polygon points="330,170 320,164 320,176" fill="#17150C"/>
+    <line x1="268" y1="360" x2="330" y2="330"/>
+    <polygon points="330,330 320,324 320,336" fill="#17150C"/>
+  </g>
+  <text x="272" y="155" font-size="12" fill="#6F6A54">fund</text>
+  <text x="272" y="345" font-size="12" fill="#6F6A54">poke</text>
+
+  <!-- Venues -->
+  <g>
+    <rect x="692" y="110" width="220" height="150" rx="14" fill="#FFFDF6" stroke="#17150C" stroke-width="2.5"/>
+    <text x="714" y="150" font-size="17" font-weight="800" fill="#17150C">UNISWAP v3</text>
+    <text x="714" y="178" font-size="14" fill="#6F6A54">real USDG/stock pools</text>
+    <text x="714" y="200" font-size="14" fill="#6F6A54">oracle-anchored slip</text>
+  </g>
+  <g>
+    <rect x="692" y="300" width="220" height="130" rx="14" fill="#FFFDF6" stroke="#17150C" stroke-width="2.5"/>
+    <text x="714" y="340" font-size="17" font-weight="800" fill="#17150C">EARN</text>
+    <text x="714" y="368" font-size="14" fill="#6F6A54">Steakhouse USDG</text>
+    <text x="714" y="390" font-size="14" fill="#6F6A54">Morpho Vaults V2</text>
+  </g>
+  <g stroke="#17150C" stroke-width="2.5" fill="none">
+    <line x1="630" y1="170" x2="692" y2="170"/>
+    <polygon points="692,170 682,164 682,176" fill="#17150C"/>
+    <line x1="630" y1="360" x2="692" y2="360"/>
+    <polygon points="692,360 682,354 682,366" fill="#17150C"/>
+  </g>
+  <text x="634" y="155" font-size="12" fill="#6F6A54">swap</text>
+  <text x="598" y="345" font-size="12" fill="#6F6A54">sweep</text>
+
+  <!-- Trail -->
+  <g>
+    <rect x="48" y="480" width="864" height="150" rx="14" fill="#FFFDF6" stroke="#17150C" stroke-width="2.5"/>
+    <text x="70" y="520" font-size="17" font-weight="800" fill="#17150C">VERIFIABLE TRAIL — every decision onchain</text>
+    <circle cx="80" cy="560" r="7" fill="#E3E616" stroke="#17150C" stroke-width="2"/>
+    <text x="96" y="566" font-size="14" fill="#17150C">Fill · $5 NVDA @ $228.82 · 0x12e29b94…</text>
+    <circle cx="80" cy="592" r="7" fill="#BE4A2F"/>
+    <text x="96" y="598" font-size="14" fill="#17150C">Guard refusal / stop-loss · reason + price + feed time</text>
+  </g>
+
+  <!-- Robinhood rail -->
+  <g>
+    <rect x="944" y="110" width="208" height="520" rx="14" fill="#E3E616"/>
+    <text x="966" y="155" font-size="17" font-weight="800" fill="#17150C">ROBINHOOD</text>
+    <text x="966" y="180" font-size="17" font-weight="800" fill="#17150C">CHAIN</text>
+    <text x="966" y="212" font-size="13" fill="#17150C">stock tokens</text>
+    <text x="966" y="232" font-size="13" fill="#17150C">Chainlink feeds</text>
+    <text x="966" y="252" font-size="13" fill="#17150C">USDG settlement</text>
+    <text x="966" y="590" font-size="13" font-weight="700" fill="#17150C">testnet + mainnet</text>
+    <text x="966" y="610" font-size="13" font-weight="700" fill="#17150C">live · verified</text>
+  </g>
+</svg>
