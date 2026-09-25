@@ -125,7 +125,7 @@ agent.addCapability({
 
     const { account, pub, wallet } = rhcClients()
     const amt = parseUnits(String(parsed.amountUsd), 6)
-    const fund = amt * 10n // ~10 fills of runway
+    const fund = amt * 2n // 2 fills of runway (demo scope; top up anytime)
     const bal = (await pub.readContract({
       address: USDG, abi: ERC20_ABI, functionName: 'balanceOf', args: [account.address],
     })) as bigint
@@ -134,8 +134,9 @@ agent.addCapability({
 
     await wallet.writeContract({
       address: USDG, abi: ERC20_ABI, functionName: 'approve', args: [VAULT, fund],
-      account: account.address, chain: CHAIN as any,
-    })
+      account, chain: CHAIN as any,
+      nonce: await pub.getTransactionCount({ address: account.address }),
+    }).then((h) => pub.waitForTransactionReceipt({ hash: h }))
     // Simulate first to surface revert reasons cleanly.
     const sim = (await pub.simulateContract({
       address: VAULT, abi: VAULT_ABI, functionName: 'createPlan',
@@ -154,11 +155,16 @@ agent.addCapability({
         BigInt(Math.round(parsed.stopLossPct * 100)), BigInt(Math.round(parsed.takeProfitPct * 100)),
         3600n, 500n, 200n, 7200n,
       ],
-      account: account.address, chain: CHAIN as any,
+      account, chain: CHAIN as any,
+      nonce: await pub.getTransactionCount({ address: account.address }),
+    }).then(async (h) => {
+      await pub.waitForTransactionReceipt({ hash: h })
+      return h
     })
     const h2 = await wallet.writeContract({
       address: VAULT, abi: VAULT_ABI, functionName: 'fundPlan', args: [planId, fund],
-      account: account.address, chain: CHAIN as any,
+      account, chain: CHAIN as any,
+      nonce: await pub.getTransactionCount({ address: account.address }),
     })
     return (
       `Done — plan #${planId}: buys $${parsed.amountUsd} ${sym} every ${parsed.cadenceMin} min, ` +
