@@ -203,16 +203,36 @@ agent.addCapability({
   },
 })
 
+const CHAINS2: Record<string, { vault: `0x${string}`; rpc: string; explorer: string; usdDec: number }> = {
+  mainnet: {
+    vault: '0x5071a403633744C016fB31536c5c31A5685eeEA1',
+    rpc: 'https://rpc.mainnet.chain.robinhood.com',
+    explorer: 'https://robin.etherscan.io',
+    usdDec: 6,
+  },
+  testnet: {
+    vault: '0x7a0F2fED43CfdAC86Ed13A0909e7669f48e83983',
+    rpc: 'https://rpc.testnet.chain.robinhood.com',
+    explorer: 'https://explorer.testnet.chain.robinhood.com',
+    usdDec: 18,
+  },
+}
+
 agent.addCapability({
   name: 'explain_refusal',
-  description: 'Explain why the guard refused a fill or skipped protection for a plan — reads the onchain refusal events and translates the reason code into plain English with the transaction link.',
-  inputSchema: z.object({ planId: z.string().describe('Plan ID number, e.g. "0"') }),
+  description: 'Explain why the guard refused a fill or skipped protection for a plan — reads the onchain refusal events and translates the reason code into plain English with the transaction link. Use chain testnet for rehearsals, mainnet for real money.',
+  inputSchema: z.object({
+    planId: z.string().describe('Plan ID number, e.g. "0"'),
+    chain: z.enum(['mainnet', 'testnet']).optional().describe('Which chain to read (default mainnet)'),
+  }),
   async run({ args }) {
-    const { pub } = rhcClients()
+    const c = CHAINS2[args.chain ?? 'mainnet']
+    const transport = http(c.rpc, { timeout: 15000 })
+    const pub = createPublicClient({ chain: CHAIN as any, transport })
     const id = BigInt(args.planId)
     const head = await pub.getBlockNumber()
     const from = head > 200_000n ? head - 200_000n : 0n
-    const logs = await pub.getLogs({ address: VAULT, fromBlock: from, toBlock: 'latest' })
+    const logs = await pub.getLogs({ address: c.vault, fromBlock: from, toBlock: 'latest' })
     const { decodeEventLog } = await import('viem')
     const refusals: string[] = []
     for (const l of logs.slice(-40)) {
@@ -229,7 +249,7 @@ agent.addCapability({
             : code === 5 ? 'it was cooling down after a protection sale, sitting out the aftershock'
             : 'protection saw no position or nothing to do'
           const when = a.feedTs ? ` (feed time ${new Date(Number(a.feedTs) * 1000).toLocaleString()})` : ''
-          refusals.push(`${d.eventName}: ${why}${when}. Tx: ${EXPLORER}/tx/${l.transactionHash}`)
+          refusals.push(`${d.eventName}: ${why}${when}. Tx: ${c.explorer}/tx/${l.transactionHash}`)
         }
       } catch { /* skip undecodable */ }
     }

@@ -636,6 +636,15 @@ button {
 
 .trailcount { margin-top: 14px; }
 
+.agentsub {
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 26px 0 6px;
+}
+
+.btnrow a { text-decoration: none; }
+
 .dot {
   width: 11px;
   height: 11px;
