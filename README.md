@@ -103,16 +103,18 @@ Mainnet needs nothing — real Chainlink.
 
 **Frontend** (`frontend/`): 60-second guided setup → plan cards (equity, entry,
 protection, earn) → verifiable trail with tx links → one-click manual execution.
+Header nav adds an **Agent page** (`/agent`): live footprint of the SERV trading
+agent (plans it owns, latest guard decision with receipt) plus a 5-step guide to
+launch your own.
 
 ## 3. Proof, not claims
 
-- **27 Foundry tests, all green**: 12 vault-loop tests (fills, stale/band/
-  corporate-action refusals, stop + take-profit fires, stale-skip, sweep,
-  cancel, equity); 8 vol-engine tests (flat/volatile/capped bands, static-guard
-  refusal overturned for a measured reason, thin-history fallback, bad-round
-  skipping); 4 mainnet-fork tests (real NVDA + Chainlink feed + 6-decimal USDG,
-  incl. a fill at the real feed price and vol bands over real round history);
-  3 venue tests (live Uniswap swaps both directions, Steakhouse Earn round-trip).
+- **24 unit tests, all green** (16 vault-loop + 8 vol-engine), plus fork suites that
+  run against live RHC mainnet state: 4 fork tests (real NVDA + Chainlink feed +
+  6-decimal USDG, incl. a fill at the real feed price and vol bands over real round
+  history) and 3 venue tests (live Uniswap swaps both directions, Steakhouse Earn
+  round-trip). Run fork suites with `--fork-url https://rpc.mainnet.chain.robinhood.com`
+  — without the flag their `setUp` reverts by design.
 - **Stylus**: 7/7 parity tests + testnet deployment + onchain gas benchmark
   (table above) with bit-identical outputs.
 - **Live E2E on testnet**: deploy → plan → fund → keeper auto-fill
@@ -210,7 +212,34 @@ cd ../frontend && pnpm install && pnpm dev
 
 Stylus: `cd stylus-guard && cargo test && cargo stylus check`.
 
-## 8. Hosting (recommended)
+## 8. SERV trading agent (`serv-agent/`)
+
+A SERV Reasoning agent that turns plain English into protected plans on mainnet —
+and explains guard decisions with onchain receipts. Three capabilities: `create_plan`
+(intent → validated params → create + fund, $10/plan code cap), `plan_status`
+(chain reads rendered in words, zero LLM cost), `explain_refusal` (refusal events
+→ plain-English reason + tx link, mainnet + testnet).
+
+Live proof: agent wallet `0x4f7163e63C7fd492dEd6846DC38Fef0D8b4dE9b3` owns mainnet
+plan #1 ([creation](https://robin.etherscan.io/tx/0x2f739ba3cf1aa09fb4daefe49f05b3adf93377896492fd5eab3fb18c5d064114),
+[funding](https://robin.etherscan.io/tx/0x0f75e384649694c6197d2b3621ed41a4e7fc87b8ec90574203bdfd7436d56afa),
+[first fill](https://robin.etherscan.io/tx/0x0bca36f7052dae21e3709de646a362cb283526dbca388ef7709fef341f452ff0));
+its affordance check and a rehearsed stale-feed refusal
+([tx](https://explorer.testnet.chain.robinhood.com/tx/0x89cd4d378ec71f12cdbfd591674bfd44d3eff2c6ff28c02df00410a5f97a6b4b))
+are answered verbatim in-product.
+
+Run your own (OpenServ account + ~$1 credit, data-collection opt-in ticked):
+
+```bash
+cd serv-agent && pnpm install
+# .env: RHC_KEY=<fresh funded key, ~$20 USDG + gas>  (never a deployer)
+npx tsx src/agent.ts   # provision() registers agent 4524-class identity + webhook, run() serves via tunnel
+```
+
+The app's **Agent page** (`/agent`) shows the live footprint (plans owned, latest
+guard decision) alongside this 5-step guide, so users meet the agent from the product.
+
+## 9. Hosting (recommended)
 
 - **Frontend → Vercel** (static Vite SPA; git-push previews judges can click).
   Two projects from this repo: `batpilot-testnet` (`frontend/.env.testnet` values
@@ -223,7 +252,7 @@ Stylus: `cd stylus-guard && cargo test && cargo stylus check`.
 - AWS is overkill at this stage — revisit for multi-region keepers / managed
   key infrastructure after traction.
 
-## 9. Security notes
+## 10. Security notes
 
 - OZ `SafeERC20` / `ReentrancyGuard` throughout; CEI ordering; keeper is
   trustless (can only call what contracts permit).
