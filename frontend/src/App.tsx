@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import SiteHeader from "./components/SiteHeader";
 import {
   useAccount,
-  useConnect,
-  useDisconnect,
   useSwitchChain,
   useWriteContract,
 } from "wagmi";
@@ -95,17 +95,7 @@ type TrailItem = {
   fillTs?: bigint;
 };
 
-const AGENT_WALLET = "0x4f7163e63C7fd492dEd6846DC38Fef0D8b4dE9b3";
-const OPENSERV_URL = "https://console.openserv.ai/";
-const WHY: Record<number, string> = {
-  1: "the price feed was stale, so it refused to trade blind",
-  2: "the plan was paused after a corporate action like a split",
-  3: "the price moved too far too fast versus its band",
-  5: "it was cooling down after a protection sale, sitting out the aftershock",
-};
 
-type AgentPlan = { id: bigint; sym: string; active: boolean; total: bigint };
-type Refusal = { chain: string; planId: string; reason: number; price: bigint; feedTs: bigint; tx: string; explorer: string; block: bigint };
 
 function Tip({ text }: { text: string }) {
   return (
@@ -134,8 +124,6 @@ export default function App() {
   );
 
   const { address, isConnected, chainId: walletChainId } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
@@ -146,8 +134,6 @@ export default function App() {
 
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [trail, setTrail] = useState<TrailItem[]>([]);
-  const [agentPlans, setAgentPlans] = useState<AgentPlan[]>([]);
-  const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [hist, setHist] = useState<Record<string, HistPoint[]>>({});
   const [live, setLive] = useState<Record<string, bigint>>({});
   const [status, setStatus] = useState("");
@@ -305,80 +291,6 @@ export default function App() {
     const t = setInterval(refreshAll, 8000);
     return () => clearInterval(t);
   }, [refreshAll, refresh]);
-
-  // Agent footprint: plans it owns on mainnet + latest guard decision anywhere.
-  useEffect(() => {
-    let stop = false;
-    (async () => {
-      try {
-        const mc = CHAINS[4663];
-        const tc = CHAINS[46630];
-        const mpub = createPublicClient({ chain: mc.chain as any, transport: http(mc.rpc) });
-        const count = (await mpub.readContract({
-          address: mc.vault, abi: VAULT_ABI, functionName: "planCount",
-        })) as bigint;
-        const rows: AgentPlan[] = [];
-        const names: Record<string, string> = Object.fromEntries(
-          mc.stocks.map((s) => [s.stock.toLowerCase(), s.symbol])
-        );
-        for (let id = 0n; id < count; id++) {
-          const p = (await mpub.readContract({
-            address: mc.vault, abi: VAULT_ABI, functionName: "plans", args: [id],
-          })) as any;
-          if ((p[0] as string).toLowerCase() !== AGENT_WALLET.toLowerCase()) continue;
-          const eq = (await mpub.readContract({
-            address: mc.vault, abi: VAULT_ABI, functionName: "planEquity", args: [id],
-          })) as readonly [bigint, bigint, bigint, bigint];
-          rows.push({
-            id,
-            sym: names[(p[1] as string).toLowerCase()] ?? "STOCK",
-            active: p[16] as boolean,
-            total: eq[0] + eq[2] + eq[3],
-          });
-        }
-        // Latest refusal across both chains (testnet rehearsals share the bytecode).
-        let best: Refusal | null = null;
-        for (const c of [mc, tc]) {
-          try {
-            const pub = c === mc
-              ? mpub
-              : createPublicClient({ chain: tc.chain as any, transport: http(tc.rpc) });
-            const head = await pub.getBlockNumber();
-            const logs = await pub.getLogs({
-              address: c.vault, fromBlock: head > 200_000n ? head - 200_000n : 0n, toBlock: "latest",
-            });
-            for (const l of logs) {
-              try {
-                const d = decodeEventLog({ abi: VAULT_ABI, data: l.data, topics: l.topics });
-                if (d.eventName !== "GuardRejected" && d.eventName !== "ProtectionSkipped") continue;
-                const a = d.args as any;
-                const code = Number(a.reason ?? 0);
-                if (!best || l.blockNumber! > best.block) {
-                  best = {
-                    chain: c.name,
-                    planId: String(a.planId ?? ""),
-                    reason: code,
-                    price: (a.price ?? 0n) as bigint,
-                    feedTs: (a.feedTs ?? 0n) as bigint,
-                    tx: l.transactionHash!,
-                    explorer: c.explorer,
-                    block: l.blockNumber!,
-                  };
-                }
-              } catch { /* skip undecodable */ }
-            }
-          } catch { /* chain unreadable */ }
-        }
-        if (!stop) {
-          setAgentPlans(rows);
-          setRefusal(best);
-        }
-      } catch { /* silent: section stays empty */ }
-    })();
-    return () => {
-      stop = true;
-    };
-  }, [refresh]);
 
   const txLink = (h: string) => (CH.explorer ? `${CH.explorer}/tx/${h}` : undefined);
 
@@ -569,21 +481,7 @@ export default function App() {
 
   return (
     <div className="page">
-      <div className="topbar">
-        <div className="brand">BATPILOT<em>RHC</em></div>
-        <div className="connect">
-          {isConnected ? (
-            <>
-              <code>{address?.slice(0, 6)}…{address?.slice(-4)}</code>
-              <button className="btn" onClick={() => disconnect()}>Disconnect</button>
-            </>
-          ) : (
-            <button className="btn primary" onClick={() => connectors[0] && connect({ connector: connectors[0] })}>
-              Connect wallet
-            </button>
-          )}
-        </div>
-      </div>
+      <SiteHeader />
 
       <header className="hero">
         <h1>US stocks, <span className="accent">managed</span> while you sleep.</h1>
@@ -811,57 +709,15 @@ export default function App() {
       </section>
 
       <section>
-        <div className="sec-head">
-          <span className="sec-num">04</span>
-          <h2>Talk to the autopilot</h2>
-          <span className="dim">the SERV agent trades real money on mainnet</span>
-        </div>
-        <p className="planstory">
-          Say what you want in <strong>plain English</strong> and the agent builds the plan,
-          funds it from its own wallet, and explains every decision —
-          including the fills it <strong>refuses</strong>.
-        </p>
-        <div className="howstrip">
-          <div><strong>01 · Say it</strong><span>“Buy 8 dollars of NVDA every 15 minutes, stop me out at minus 8 percent”</span></div>
-          <div><strong>02 · It builds</strong><span>Parses intent, creates + funds the plan on mainnet, replies with links.</span></div>
-          <div><strong>03 · Ask anything</strong><span>“How is plan 1 doing?” or “Why was that fill refused?” — answered with receipts.</span></div>
-        </div>
-        <div className="btnrow" style={{ marginTop: 18 }}>
-          <a href={OPENSERV_URL} target="_blank" rel="noreferrer">
-            <button className="btn primary">Open the agent in OpenServ</button>
-          </a>
-          <span className="dim small">search “Batpilot Autopilot Agent” · no wallet needed to chat</span>
-        </div>
-        <h3 className="agentsub">Plans it owns on mainnet</h3>
-        {agentPlans.length === 0 && <p className="empty">None yet — be the first to tell it what to build.</p>}
-        {agentPlans.map((p) => (
-          <div className="trail" key={String(p.id)}>
-            <span className={`dot ${p.active ? "fill" : "info"}`} />
-            <div>
-              <strong>Plan #{String(p.id)} · {p.sym}</strong>
-              <span className="dim"> · {p.active ? "active" : "closed"} · worth {fmtUSD(p.total, 6)}</span>
-            </div>
+        <div className="agentcta">
+          <div>
+            <strong>Prefer chat over forms?</strong>
+            <span className="dim"> Run your own autopilot agent — ours is already trading on mainnet.</span>
           </div>
-        ))}
-        <h3 className="agentsub">Latest guard decision</h3>
-        {!refusal && <p className="empty">No refusals on record — every fill went through cleanly.</p>}
-        {refusal && (
-          <div className="trail" key={refusal.tx}>
-            <span className="dot refuse" />
-            <div>
-              <strong>
-                Refused — plan #{refusal.planId} ({refusal.chain})
-              </strong>
-              <div className="meta">
-                {WHY[refusal.reason] ?? "no action needed"}{" "}
-                {refusal.feedTs > 0n && <>· feed time {fmtTs(refusal.feedTs)}</>}
-              </div>
-              <a href={`${refusal.explorer}/tx/${refusal.tx}`} target="_blank" rel="noreferrer">
-                <code>{refusal.tx.slice(0, 18)}…</code>
-              </a>
-            </div>
-          </div>
-        )}
+          <Link to="/agent">
+            <button className="btn primary">Meet the agent →</button>
+          </Link>
+        </div>
       </section>
 
       <footer>

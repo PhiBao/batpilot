@@ -636,6 +636,57 @@ button {
 
 .trailcount { margin-top: 14px; }
 
+.brandrow { display: flex; align-items: center; gap: 26px; }
+a.brand { text-decoration: none; color: inherit; }
+.mainnav { display: flex; gap: 4px; }
+.mainnav a {
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+}
+.mainnav a.on { color: var(--ink); border-color: var(--ink); }
+
+.agentcta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 20px 26px;
+  box-shadow: 6px 6px 0 var(--ink);
+}
+.agentcta strong { font-family: var(--display); font-size: 20px; }
+.agentcta a { margin-left: auto; text-decoration: none; }
+
+.codeblock {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+  border-radius: 12px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+.promptchip {
+  font-family: var(--mono);
+  font-size: 13px;
+  border: 1px dashed var(--muted);
+  border-radius: 99px;
+  padding: 8px 16px;
+  color: var(--ink);
+  background: var(--card);
+}
+
 .agentsub {
   font-family: var(--display);
   font-size: 19px;
